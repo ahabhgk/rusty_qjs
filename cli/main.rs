@@ -1,7 +1,6 @@
-mod run;
 mod error;
-mod extension;
-pub mod modules;
+mod module;
+mod run;
 
 use clap::Clap;
 use run::run;

@@ -1,4 +1,7 @@
-use crate::error::AnyError;
+use crate::{
+    error::{AnyError, QJS_ERROR},
+    module::js_module_set_import_meta,
+};
 use libquickjs_sys as qjs;
 use std::{
     cell::RefCell,
@@ -14,8 +17,18 @@ struct QtokRuntime {
     js_runtime: Rc<RefCell<qjs::JSRuntime>>,
 }
 
+// TODO: encapsulate runtime and context
+impl Drop for QtokRuntime {
+    fn drop(&mut self) {
+        unsafe {
+            qjs::JS_FreeRuntime(self.js_runtime.as_ptr());
+            qjs::JS_FreeContext(self.global_context.as_ptr());
+        }
+    }
+}
+
 impl QtokRuntime {
-    pub fn new(is_main: bool) -> Self {
+    pub fn new() -> Self {
         let js_runtime = unsafe { qjs::JS_NewRuntime() };
         let global_context = unsafe { qjs::JS_NewContext(js_runtime) };
         let js_runtime = Rc::new(RefCell::new(unsafe { *js_runtime }));
@@ -32,37 +45,69 @@ impl QtokRuntime {
         }
     }
 
-    pub fn eval_module(&self, path: &Path) {
-        // let value =
+    pub fn eval_module(&self, path: &Path, is_main: bool) -> Result<(), AnyError> {
+        let value = self.eval_file(path, is_main)?;
+        unsafe {
+            let ctx = self.global_context.as_ptr();
+            qjs::JS_FreeValue(ctx, value);
+        };
+        Ok(())
     }
 
-    fn eval_file(&self, path: &Path, is_main: bool) -> Result<(), AnyError> {
+    fn eval_file(&self, path: &Path, is_main: bool) -> Result<qjs::JSValue, AnyError> {
         let code = fs::read_to_string(path)?;
         let code = &code[..];
-        let ctx = self.global_context.as_ptr();
-        let ret = unsafe {
-            let input = CString::new(code)?.as_ptr();
-            let input_len = code.len() as _;
-            let filename = CString::new(path.as_os_str().to_str().unwrap())?.as_ptr();
-            let eval_flags = (qjs::JS_EVAL_FLAG_COMPILE_ONLY | qjs::JS_EVAL_TYPE_MODULE) as _;
-
-            qjs::JS_Eval(ctx, input, input_len, filename, eval_flags)
-        };
+        let name = path.to_str().unwrap();
+        let ret = self.eval(code, name, true, true)?;
         let is_exception = unsafe { qjs::JS_IsException(ret) };
         if is_exception {
-            return Err(AnyError::msg("TODO"));
+            return Err(AnyError::msg(QJS_ERROR));
         }
-        // js_module_set_import_meta(ctx, ret, TRUE, is_main);
-        // ret = JS_EvalFunction(ctx, ret);
+        js_module_set_import_meta(self.global_context.clone(), &ret, true, is_main)?;
+        let ret = unsafe {
+            let ctx = self.global_context.as_ptr();
+            qjs::JS_EvalFunction(ctx, ret)
+        };
+        Ok(ret)
+    }
+
+    pub fn eval_script(&self, name: &str, code: &str) -> Result<qjs::JSValue, AnyError> {
+        self.eval(code, name, false, false)
+    }
+
+    fn eval(
+        &self,
+        code: &str,
+        name: &str,
+        is_module: bool,
+        compile_only: bool,
+    ) -> Result<qjs::JSValue, AnyError> {
+        let eval_flags = match (is_module, compile_only) {
+            (true, true) => qjs::JS_EVAL_TYPE_MODULE | qjs::JS_EVAL_FLAG_COMPILE_ONLY,
+            (true, false) => qjs::JS_EVAL_TYPE_MODULE,
+            (false, true) => qjs::JS_EVAL_TYPE_GLOBAL | qjs::JS_EVAL_FLAG_COMPILE_ONLY,
+            (false, false) => qjs::JS_EVAL_TYPE_GLOBAL,
+        } as _;
+        let ctx = self.global_context.as_ptr();
+        let input = CString::new(code)?.as_ptr();
+        let input_len = code.len() as _;
+        let filename = CString::new(name)?.as_ptr();
+
+        Ok(unsafe { qjs::JS_Eval(ctx, input, input_len, filename, eval_flags) })
+    }
+
+    pub fn run_event_loop(&self) -> Result<(), AnyError> {
+        todo!();
         Ok(())
     }
 }
 
-fn eval_module() {}
-
 pub fn run(script_path: PathBuf) -> Result<(), AnyError> {
     let script_path = env::current_dir()?.join(script_path);
-    let code = fs::read_to_string(script_path)?;
-    let qtok_runtime = QtokRuntime::new(true);
+    let qtok_runtime = QtokRuntime::new();
+    qtok_runtime.eval_module(&script_path, true)?;
+    // qtok_runtime.eval_script("<global>", "window.dispatchEvent(new Event('load'));")?;
+    qtok_runtime.run_event_loop()?;
+    // qtok_runtime.eval_script("<global>", "window.dispatchEvent(new Event('unload'));")?;
     Ok(())
 }
