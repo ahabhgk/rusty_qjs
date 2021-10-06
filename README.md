@@ -2,13 +2,16 @@
 
 The extensible tiny JavaScript runtime built with QuickJS, tokio and ❤️
 
-## TODO
+## ROADMAP
 
-- [ ] struct module
-- [ ] set import.meta
-- [ ] core (qjs abstract layer or rusty_qjs/serde_qjs?)
+- [ ] event loop
+- [ ] event target
+- [ ] Module ADT
+    - [ ] set import.meta
+- [ ] worker
 - [ ] addon
 - [ ] compile command
-- [ ] event
-- [ ] worker
 - [ ] log level
+- [ ] core
+    - [ ] qjs abstract layer (rusty_qjs/serde_qjs)
+- [ ] wasm
