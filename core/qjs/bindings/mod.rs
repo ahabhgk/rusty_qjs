@@ -519,6 +519,7 @@ impl ContextWrapper {
             let err = self
                 .get_exception()
                 .unwrap_or_else(|| ExecutionError::Exception("Unknown exception".into()));
+            dbg!(err.to_string());
             Err(err)
         } else if value.is_object() {
             let obj = value.try_into_object()?;
@@ -592,19 +593,27 @@ impl ContextWrapper {
 
     /// Evaluate javascript code.
     pub fn eval<'a>(&'a self, code: &str) -> Result<OwnedJsValue<'a>, ExecutionError> {
-        let filename = "script.js";
+        let filename = "/Users/ahabhgk/codes/web/qtok/cli/examples/mod.js";
         let filename_c = make_cstring(filename)?;
         let code_c = make_cstring(code)?;
 
-        let value_raw = unsafe {
-            q::JS_Eval(
-                self.context,
-                code_c.as_ptr(),
-                code.len() as _,
-                filename_c.as_ptr(),
-                q::JS_EVAL_TYPE_GLOBAL as i32,
-            )
-        };
+        let ctx = self.context;
+        let input = code_c.as_ptr();
+        let input_len = code.len() as _;
+        let name = filename_c.as_ptr();
+        let eval_flags = (q::JS_EVAL_TYPE_MODULE | q::JS_EVAL_FLAG_COMPILE_ONLY) as i32;
+
+        dbg!(
+            unsafe {*ctx},
+            code,
+            unsafe {*input},
+            input_len,
+            unsafe {*name},
+            filename,
+            eval_flags
+        );
+        let value_raw = unsafe { q::JS_Eval(ctx, input, input_len, name, eval_flags) };
+        println!("JS_Eval");
         let value = OwnedJsValue::new(self, value_raw);
         self.resolve_value(value)
     }

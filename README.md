@@ -6,8 +6,7 @@ The extensible tiny JavaScript runtime built with QuickJS, tokio and ❤️
 
 - [ ] struct module
 - [ ] set import.meta
-- [ ] core (qjs abstract layer)
-- [ ] serde_qjs
+- [ ] core (qjs abstract layer or rusty_qjs/serde_qjs?)
 - [ ] addon
 - [ ] compile command
 - [ ] event

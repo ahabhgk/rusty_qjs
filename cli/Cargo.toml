@@ -18,3 +18,4 @@ anyhow = "1.0.44"
 clap = "3.0.0-beta.4"
 libquickjs-sys = { version = "0.10.0", features = ["patched"] }
 tokio = { version = "1.12.0", features = ["full"] }
+futures = "0.3.17"

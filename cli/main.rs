@@ -3,8 +3,10 @@ mod module;
 mod run;
 
 use clap::Clap;
+use error::AnyError;
+use futures::FutureExt;
 use run::run;
-use std::{future::Future, path::PathBuf};
+use std::{future::Future, path::PathBuf, pin::Pin, process};
 use tokio::{runtime, task};
 
 #[derive(Clap, Debug)]
@@ -15,14 +17,24 @@ enum Opts {
     Run { script: PathBuf },
 }
 
+fn get_subcommand(opts: Opts) -> Pin<Box<dyn Future<Output = Result<(), AnyError>>>> {
+    match opts {
+        Opts::Run { script } => run(script).boxed_local(),
+    }
+}
+
 fn main() {
-    let opts = Opts::parse();
-    run_local(async move {
-        match opts {
-            Opts::Run { script } => run(script),
+    // let opts = Opts::parse();
+    let opts = Opts::Run {
+        script: PathBuf::from("examples/mod.js"),
+    };
+    match run_local(get_subcommand(opts)) {
+        Ok(_) => println!("run successed"),
+        Err(e) => {
+            eprintln!("run failed: {}", e);
+            process::exit(1);
         }
-    })
-    .unwrap();
+    }
 }
 
 pub fn run_local<F, R>(future: F) -> R
