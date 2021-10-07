@@ -425,7 +425,6 @@ dependencies = [
  "clap",
  "futures",
  "libquickjs-sys",
- "qtok_core",
  "tokio",
 ]
 

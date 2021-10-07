@@ -1,12 +1,12 @@
-use crate::error::AnyError;
-use libquickjs_sys as qjs;
+use crate::qjs_core::{context::JsContext, error::AnyError, value::JsValue};
+use std::rc::Rc;
 
 pub fn js_module_set_import_meta(
-    ctx: *mut qjs::JSContext,
-    module: &qjs::JSValue,
-    use_realpath: bool,
-    is_main: bool,
+  ctx: Rc<JsContext>,
+  module: &JsValue,
+  use_realpath: bool,
+  is_main: bool,
 ) -> Result<(), AnyError> {
-    // TODO
-    Ok(())
+  // TODO
+  Ok(())
 }
