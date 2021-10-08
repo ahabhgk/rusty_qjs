@@ -1,10 +1,10 @@
+mod error;
 mod module;
-mod qjs_core;
 mod run;
 
 use clap::Clap;
+use error::AnyError;
 use futures::FutureExt;
-use qjs_core::error::AnyError;
 use run::run;
 use std::{future::Future, path::PathBuf, pin::Pin, process};
 use tokio::{runtime, task};
@@ -26,20 +26,11 @@ fn get_subcommand(
 }
 
 fn main() {
-  // let opts = Opts::parse();
-  let opts = Opts::Run {
-    script: PathBuf::from("cli/examples/mod.js"),
-  };
-  match run_local(get_subcommand(opts)) {
-    Ok(_) => println!("run successed"),
-    Err(e) => {
-      eprintln!("[exception] {}", e);
-      process::exit(1);
-    }
-  }
+  let opts = Opts::parse();
+  unwrap_or_exit(run_local(get_subcommand(opts)));
 }
 
-pub fn run_local<F, R>(future: F) -> R
+fn run_local<F, R>(future: F) -> R
 where
   F: Future<Output = R>,
 {
@@ -51,4 +42,14 @@ where
     .unwrap();
   let local = task::LocalSet::new();
   local.block_on(&tokio_runtime, future)
+}
+
+fn unwrap_or_exit<T>(result: Result<T, AnyError>) -> T {
+  match result {
+    Ok(value) => value,
+    Err(error) => {
+      eprintln!("[exception] {:?}", error);
+      process::exit(1);
+    }
+  }
 }

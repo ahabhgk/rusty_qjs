@@ -75,7 +75,7 @@ impl From<JsValue> for String {
 }
 
 impl JsValue {
-  pub fn from_qjs(ctx: Rc<JsContext>, value: qjs::JSValue) -> Self {
+  pub(crate) fn from_qjs(ctx: Rc<JsContext>, value: qjs::JSValue) -> Self {
     Self {
       context: ctx,
       inner: value,
@@ -99,10 +99,10 @@ impl JsValue {
   }
 
   pub fn is_error(&self, ctx: Rc<JsContext>) -> bool {
-    unsafe { qjs::JS_IsError(ctx.inner(), self.inner()) == 1 }
+    unsafe { qjs::JS_IsError(ctx.inner(), self.inner) == 1 }
   }
 
   pub fn is_exception(&self) -> bool {
-    unsafe { qjs::JS_IsException(self.inner()) }
+    unsafe { qjs::JS_IsException(self.inner) }
   }
 }

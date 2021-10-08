@@ -1,13 +1,8 @@
-use crate::{
-  module::js_module_set_import_meta,
-  qjs_core::{
-    context::JsContext,
-    error::{AnyError, JsError},
-    runtime::JsRuntime,
-    value::JsValue,
-  },
-};
+use crate::{error::AnyError, module::js_module_set_import_meta};
 use futures::future::poll_fn;
+use rusty_qjs::{
+  context::JsContext, error::JsError, runtime::JsRuntime, value::JsValue,
+};
 use std::{
   env, fs,
   path::{Path, PathBuf},
@@ -50,13 +45,13 @@ impl QtokRuntime {
     let code = fs::read_to_string(path)?;
     let code = &code[..];
     let name = path.to_str().unwrap();
-    let ctx = &self.global_context;
-    let mut ret = Rc::clone(ctx).eval(code, name, true, true)?;
-    js_module_set_import_meta(Rc::clone(ctx), &ret, true, is_main)?;
+    let ctx = Rc::clone(&self.global_context);
+    let mut ret = Rc::clone(&ctx).eval(code, name, true, true)?;
+    js_module_set_import_meta(Rc::clone(&ctx), &ret, true, is_main)?;
     // TODO: eval module, continue abstract eval?
-    ret = Rc::clone(ctx).eval_function(&ret);
+    ret = Rc::clone(&ctx).eval_function(&ret);
     if ret.is_exception() {
-      return Err(JsError::from_qjs_exception(Rc::clone(ctx), &ret).into());
+      return Err(JsError::from(ctx).into());
     }
     Ok(ret)
   }
@@ -66,40 +61,10 @@ impl QtokRuntime {
     name: &str,
     code: &str,
   ) -> Result<JsValue, AnyError> {
-    Rc::clone(&self.global_context).eval(code, name, false, false)
+    Rc::clone(&self.global_context)
+      .eval(code, name, false, false)
+      .map_err(|e| e.into())
   }
-
-  // fn eval(
-  //   &mut self,
-  //   code: &str,
-  //   name: &str,
-  //   is_module: bool,
-  //   compile_only: bool,
-  // ) -> Result<qjs::JSValue, AnyError> {
-  //   let eval_flags = match (is_module, compile_only) {
-  //     (true, true) => qjs::JS_EVAL_TYPE_MODULE | qjs::JS_EVAL_FLAG_COMPILE_ONLY,
-  //     (true, false) => qjs::JS_EVAL_TYPE_MODULE,
-  //     (false, true) => {
-  //       qjs::JS_EVAL_TYPE_GLOBAL | qjs::JS_EVAL_FLAG_COMPILE_ONLY
-  //     }
-  //     (false, false) => qjs::JS_EVAL_TYPE_GLOBAL,
-  //   } as _;
-  //   let ctx = self.global_context;
-  //   let code_cstring = CString::new(code).unwrap();
-  //   let input = code_cstring.as_ptr();
-  //   let input_len = code.len() as _;
-  //   let name_cstring = CString::new(name).unwrap();
-  //   let filename = name_cstring.as_ptr();
-
-  //   let value_raw =
-  //     unsafe { qjs::JS_Eval(ctx, input, input_len, filename, eval_flags) };
-
-  //   let is_exception = unsafe { qjs::JS_IsException(value_raw) };
-  //   if is_exception {
-  //     return Err(JsError::from_qjs_exception(ctx, value_raw).into());
-  //   }
-  //   Ok(value_raw)
-  // }
 
   pub async fn run_event_loop(&self) -> Result<(), AnyError> {
     poll_fn(|cx| {
@@ -111,7 +76,7 @@ impl QtokRuntime {
 
   fn perform_microtasks(&self) -> Result<(), AnyError> {
     // loop {
-    //   // qjs::JS_ExecutePendingJob(self.js_runtime, pctx)
+    //   qjs::JS_ExecutePendingJob(self.js_runtime, pctx)
     // }
     dbg!("looping!");
 

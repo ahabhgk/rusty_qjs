@@ -1,5 +1,5 @@
 [package]
-name = "qtok"
+name = "rusty_qjs"
 version = "0.1.0"
 authors = ["ahabhgk"]
 edition = "2018"
@@ -7,18 +7,8 @@ license = "MIT"
 repository = "https://github.com/ahabhgk/qtok.js"
 description = "The extensible tiny JavaScript runtime built with QuickJS, tokio and ❤️"
 
-[[bin]]
-name = "qtok"
-path = "main.rs"
+[lib]
+path = "lib.rs"
 
 [dependencies]
-rusty_qjs = { path = "../rusty_qjs" }
-
-anyhow = "1.0.44"
-clap = "3.0.0-beta.4"
 libquickjs-sys = { version = "0.10.0", features = ["patched"] }
-tokio = { version = "1.12.0", features = ["full"] }
-futures = "0.3.17"
-
-[dev-dependencies]
-os_pipe = "0.9.2"

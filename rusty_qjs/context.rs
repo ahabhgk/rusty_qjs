@@ -1,8 +1,4 @@
-use super::{
-  error::{AnyError, JsError},
-  runtime::JsRuntime,
-  value::JsValue,
-};
+use super::{error::JsError, runtime::JsRuntime, value::JsValue};
 use libquickjs_sys as qjs;
 use std::{ffi::CString, marker::PhantomData, rc::Rc};
 
@@ -15,6 +11,17 @@ pub struct JsContext {
 impl Drop for JsContext {
   fn drop(&mut self) {
     unsafe { qjs::JS_FreeContext(self.inner) };
+  }
+}
+
+impl Default for JsContext {
+  fn default() -> Self {
+    let runtime = JsRuntime::default();
+    let context = unsafe { qjs::JS_NewContext(runtime.inner()) };
+    Self {
+      inner: context,
+      _marker: PhantomData,
+    }
   }
 }
 
@@ -39,7 +46,7 @@ impl JsContext {
     name: &str,
     is_module: bool,
     compile_only: bool,
-  ) -> Result<JsValue, AnyError> {
+  ) -> Result<JsValue, JsError> {
     let eval_flags = match (is_module, compile_only) {
       (true, true) => qjs::JS_EVAL_TYPE_MODULE | qjs::JS_EVAL_FLAG_COMPILE_ONLY,
       (true, false) => qjs::JS_EVAL_TYPE_MODULE,
@@ -60,7 +67,7 @@ impl JsContext {
     let value = JsValue::from_qjs(Rc::clone(&self), value);
 
     if value.is_exception() {
-      return Err(JsError::from_qjs_exception(self, &value).into());
+      return Err(self.into());
     }
     Ok(value)
   }

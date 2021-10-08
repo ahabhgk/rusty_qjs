@@ -1,5 +1,6 @@
+use super::{context::JsContext, error::JsError};
 use libquickjs_sys as qjs;
-use std::marker::PhantomData;
+use std::{marker::PhantomData, rc::Rc};
 
 pub struct JsRuntime {
   inner: *mut qjs::JSRuntime,
@@ -25,5 +26,17 @@ impl Default for JsRuntime {
 impl JsRuntime {
   pub(crate) fn inner(&self) -> *mut qjs::JSRuntime {
     self.inner
+  }
+
+  pub fn execute_pending_job(&self) -> Result<bool, JsError> {
+    let ctx = Rc::new(JsContext::default());
+    let pctx = &mut ctx.inner();
+    let res = unsafe { qjs::JS_ExecutePendingJob(self.inner, pctx) };
+    match res {
+      0 => Ok(false),
+      1 => Ok(true),
+      1.. => panic!(),
+      _ => Err(ctx.into()),
+    }
   }
 }
