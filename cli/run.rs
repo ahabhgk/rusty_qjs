@@ -12,14 +12,14 @@ use std::{
 
 struct QtokRuntime {
   global_context: Rc<JsContext>,
-  js_runtime: JsRuntime,
+  // js_runtime: JsRuntime,
   // pending_ops:
 }
 
 impl QtokRuntime {
   pub fn new() -> Self {
     let js_runtime = JsRuntime::default();
-    let global_context = JsContext::new(&js_runtime);
+    let global_context = JsContext::new(js_runtime);
     // JS_SetMaxStackSize
     // JS_SetModuleLoaderFunc
     // JS_SetHostPromiseRejectionTracker
@@ -28,7 +28,7 @@ impl QtokRuntime {
     // tjs__add_builtins path, uuid, hashlib...
     Self {
       global_context,
-      js_runtime,
+      // js_runtime,
     }
   }
 
@@ -75,10 +75,14 @@ impl QtokRuntime {
   }
 
   fn perform_microtasks(&self) -> Result<(), AnyError> {
-    // loop {
-    //   qjs::JS_ExecutePendingJob(self.js_runtime, pctx)
-    // }
-    dbg!("looping!");
+    loop {
+      let has_microtask = self.global_context.runtime.execute_pending_job()?;
+      if !has_microtask {
+        println!("no more microtask!");
+        break;
+      }
+      println!("exe microtask!");
+    }
 
     Ok(())
   }
