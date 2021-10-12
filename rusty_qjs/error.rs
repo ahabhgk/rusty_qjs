@@ -2,7 +2,7 @@ use super::{context::JsContext, value::JsValue};
 use libquickjs_sys as qjs;
 use std::{error::Error, fmt::Display, rc::Rc};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct JsError {
   stack: String,
   message: String,

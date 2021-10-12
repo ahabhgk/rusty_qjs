@@ -9,7 +9,7 @@ use std::{
 
 #[derive(Clone)]
 pub struct JsValue {
-  context: Rc<JsContext>,
+  pub context: Rc<JsContext>,
   inner: qjs::JSValue,
 }
 
@@ -49,7 +49,7 @@ impl Debug for JsValue {
 
 impl Drop for JsValue {
   fn drop(&mut self) {
-    // never use qjs::JS_FreeValue to free qjs::JSValue.
+    // never use qjs::JS_FreeValue to free qjs::JS_TAG_MODULE.
     if self.inner.tag == qjs::JS_TAG_MODULE.into() {
       return;
     }
@@ -75,7 +75,7 @@ impl From<JsValue> for String {
 }
 
 impl JsValue {
-  pub(crate) fn from_qjs(ctx: Rc<JsContext>, value: qjs::JSValue) -> Self {
+  pub fn from_qjs(ctx: Rc<JsContext>, value: qjs::JSValue) -> Self {
     Self {
       context: ctx,
       inner: value,

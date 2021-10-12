@@ -1,8 +1,6 @@
-use crate::value::JsValue;
-
 use super::{context::JsContext, error::JsError};
 use libquickjs_sys as qjs;
-use std::{marker::PhantomData, ptr, rc::Rc};
+use std::{ffi::c_void, marker::PhantomData};
 
 #[derive(Debug)]
 pub struct JsRuntime {
@@ -31,21 +29,18 @@ impl JsRuntime {
     self.inner
   }
 
-  pub fn set_host_promise_rejection_tracker<F>(
+  // TODO: see rusty_v8, and write the bindings manually
+  pub unsafe fn set_host_promise_rejection_tracker(
     &self,
     tracker: qjs::JSHostPromiseRejectionTracker,
+    opaque: *mut c_void,
   ) {
-    unsafe {
-      qjs::JS_SetHostPromiseRejectionTracker(
-        self.inner,
-        tracker,
-        ptr::null_mut(),
-      )
-    };
+    qjs::JS_SetHostPromiseRejectionTracker(self.inner, tracker, opaque)
   }
 
   pub fn execute_pending_job(&self) -> Result<bool, JsError> {
-    let ctx = Rc::new(JsContext::default());
+    let runtime = JsRuntime::default();
+    let ctx = JsContext::new(&runtime);
     let pctx = &mut ctx.inner();
     let res = unsafe { qjs::JS_ExecutePendingJob(self.inner, pctx) };
     match res {

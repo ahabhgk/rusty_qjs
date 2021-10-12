@@ -6,7 +6,6 @@ use std::{ffi::CString, marker::PhantomData, rc::Rc};
 pub struct JsContext {
   inner: *mut qjs::JSContext,
   _marker: PhantomData<*mut qjs::JSContext>,
-  pub runtime: JsRuntime,
 }
 
 impl Drop for JsContext {
@@ -15,25 +14,20 @@ impl Drop for JsContext {
   }
 }
 
-impl Default for JsContext {
-  fn default() -> Self {
-    let runtime = JsRuntime::default();
-    let context = unsafe { qjs::JS_NewContext(runtime.inner()) };
-    Self {
-      inner: context,
-      _marker: PhantomData,
-      runtime,
-    }
-  }
-}
-
 impl JsContext {
-  pub fn new(runtime: JsRuntime) -> Rc<Self> {
+  pub fn new(runtime: &JsRuntime) -> Rc<Self> {
     let context = unsafe { qjs::JS_NewContext(runtime.inner()) };
     let context = Self {
       inner: context,
       _marker: PhantomData,
-      runtime,
+    };
+    Rc::new(context)
+  }
+
+  pub fn from_inner(inner: *mut qjs::JSContext) -> Rc<Self> {
+    let context = Self {
+      inner,
+      _marker: PhantomData,
     };
     Rc::new(context)
   }

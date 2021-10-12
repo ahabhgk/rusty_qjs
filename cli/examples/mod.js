@@ -6,5 +6,4 @@ async function main() {
 
 main().then(() => {
   throw new Error("haha");
-}).catch((e) => {
-});
+})

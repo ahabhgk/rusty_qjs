@@ -1,35 +1,63 @@
 use crate::{error::AnyError, module::js_module_set_import_meta};
 use futures::future::poll_fn;
+use libquickjs_sys as qjs;
 use rusty_qjs::{
   context::JsContext, error::JsError, runtime::JsRuntime, value::JsValue,
 };
 use std::{
-  env, fs,
+  env,
+  ffi::c_void,
+  fs,
   path::{Path, PathBuf},
   rc::Rc,
   task::Poll,
 };
 
-struct QtokRuntime {
+extern "C" fn host_promise_rejection_tracker(
+  ctx: *mut qjs::JSContext,
+  _promise: qjs::JSValue,
+  _reason: qjs::JSValue,
+  is_handled: ::std::os::raw::c_int,
+  opaque: *mut ::std::os::raw::c_void,
+) {
+  if is_handled == 0 {
+    let qtok = unsafe { &mut *(opaque as *mut Qtok) };
+    qtok
+      .pending_promise_exceptions
+      .push(JsContext::from_inner(ctx).into())
+  }
+}
+
+struct Qtok {
   global_context: Rc<JsContext>,
-  // js_runtime: JsRuntime,
+  js_runtime: JsRuntime,
+  pending_promise_exceptions: Vec<JsError>,
   // pending_ops:
 }
 
-impl QtokRuntime {
+impl Qtok {
   pub fn new() -> Self {
     let js_runtime = JsRuntime::default();
-    let global_context = JsContext::new(js_runtime);
+    let global_context = JsContext::new(&js_runtime);
+    let mut qtok = Self {
+      global_context,
+      js_runtime,
+      pending_promise_exceptions: Vec::new(),
+    };
     // JS_SetMaxStackSize
     // JS_SetModuleLoaderFunc
     // JS_SetHostPromiseRejectionTracker
+    let opaque = { &mut qtok as *mut _ as *mut c_void };
+    unsafe {
+      qtok.js_runtime.set_host_promise_rejection_tracker(
+        Some(host_promise_rejection_tracker),
+        opaque,
+      )
+    };
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
     // tjs__add_builtins path, uuid, hashlib...
-    Self {
-      global_context,
-      // js_runtime,
-    }
+    qtok
   }
 
   pub fn eval_module(
@@ -60,41 +88,45 @@ impl QtokRuntime {
     &self,
     name: &str,
     code: &str,
-  ) -> Result<JsValue, AnyError> {
-    Rc::clone(&self.global_context)
-      .eval(code, name, false, false)
-      .map_err(|e| e.into())
+  ) -> Result<JsValue, JsError> {
+    Rc::clone(&self.global_context).eval(code, name, false, false)
   }
 
-  pub async fn run_event_loop(&self) -> Result<(), AnyError> {
+  pub async fn run_event_loop(&self) -> Result<(), JsError> {
     poll_fn(|cx| {
       self.perform_microtasks()?;
+      self.check_promise_exceptions()?;
       return Poll::Ready(Ok(()));
     })
     .await
   }
 
-  fn perform_microtasks(&self) -> Result<(), AnyError> {
+  fn perform_microtasks(&self) -> Result<(), JsError> {
     loop {
-      let has_microtask = self.global_context.runtime.execute_pending_job()?;
+      let has_microtask = self.js_runtime.execute_pending_job()?;
       if !has_microtask {
-        println!("no more microtask!");
         break;
       }
-      println!("exe microtask!");
     }
 
+    Ok(())
+  }
+
+  fn check_promise_exceptions(&self) -> Result<(), JsError> {
+    if let Some(e) = self.pending_promise_exceptions.first() {
+      return Err(e.clone());
+    }
     Ok(())
   }
 }
 
 pub async fn run(script_path: PathBuf) -> Result<(), AnyError> {
   let script_path = env::current_dir()?.join(script_path);
-  let qtok_runtime = QtokRuntime::new();
-  qtok_runtime.eval_module(&script_path, true)?;
-  // qtok_runtime.eval_script("<global>", "window.dispatchEvent(new Event('load'));")?;
-  qtok_runtime.run_event_loop().await?;
-  // qtok_runtime.eval_script("<global>", "window.dispatchEvent(new Event('unload'));")?;
+  let qtok = Qtok::new();
+  qtok.eval_module(&script_path, true)?;
+  // qtok.eval_script("<global>", "window.dispatchEvent(new Event('load'));")?;
+  qtok.run_event_loop().await?;
+  // qtok.eval_script("<global>", "window.dispatchEvent(new Event('unload'));")?;
   Ok(())
 }
 
