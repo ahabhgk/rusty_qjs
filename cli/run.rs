@@ -13,10 +13,11 @@ use std::{
   task::Poll,
 };
 
+// FIXME:
 extern "C" fn host_promise_rejection_tracker(
   ctx: *mut qjs::JSContext,
   _promise: qjs::JSValue,
-  _reason: qjs::JSValue,
+  reason: qjs::JSValue,
   is_handled: ::std::os::raw::c_int,
   opaque: *mut ::std::os::raw::c_void,
 ) {
@@ -24,14 +25,14 @@ extern "C" fn host_promise_rejection_tracker(
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
     qtok
       .pending_promise_exceptions
-      .push(JsContext::from_inner(ctx).into())
+      .push(JsValue::from_qjs(JsContext::from_inner(ctx), reason))
   }
 }
 
 struct Qtok {
   global_context: Rc<JsContext>,
   js_runtime: JsRuntime,
-  pending_promise_exceptions: Vec<JsError>,
+  pending_promise_exceptions: Vec<JsValue>,
   // pending_ops:
 }
 
@@ -114,7 +115,7 @@ impl Qtok {
 
   fn check_promise_exceptions(&self) -> Result<(), JsError> {
     if let Some(e) = self.pending_promise_exceptions.first() {
-      return Err(e.clone());
+      return Err(self.global_context.clone().into());
     }
     Ok(())
   }

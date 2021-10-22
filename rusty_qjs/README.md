@@ -5,7 +5,6 @@ Safe abstraction for libquickjs_sys.
 ## data type
 
 // DRAFT: 子类型多态？
-// DRAFT: RefCell 内部可变性代替 *mut inner？
 
 ```text
 JsValue

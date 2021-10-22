@@ -1,15 +1,15 @@
 use super::{error::JsError, runtime::JsRuntime, value::JsValue};
 use libquickjs_sys as qjs;
-use std::{ffi::CString, marker::PhantomData, rc::Rc};
+use std::{ffi::CString, rc::Rc};
 
 #[derive(Debug)]
 pub struct JsContext {
   inner: *mut qjs::JSContext,
-  _marker: PhantomData<*mut qjs::JSContext>,
 }
 
 impl Drop for JsContext {
   fn drop(&mut self) {
+    dbg!("drop ctx");
     unsafe { qjs::JS_FreeContext(self.inner) };
   }
 }
@@ -17,18 +17,12 @@ impl Drop for JsContext {
 impl JsContext {
   pub fn new(runtime: &JsRuntime) -> Rc<Self> {
     let context = unsafe { qjs::JS_NewContext(runtime.inner()) };
-    let context = Self {
-      inner: context,
-      _marker: PhantomData,
-    };
+    let context = Self { inner: context };
     Rc::new(context)
   }
 
   pub fn from_inner(inner: *mut qjs::JSContext) -> Rc<Self> {
-    let context = Self {
-      inner,
-      _marker: PhantomData,
-    };
+    let context = Self { inner };
     Rc::new(context)
   }
 

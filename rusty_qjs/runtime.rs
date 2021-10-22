@@ -10,6 +10,7 @@ pub struct JsRuntime {
 
 impl Drop for JsRuntime {
   fn drop(&mut self) {
+    dbg!("drop rt");
     unsafe { qjs::JS_FreeRuntime(self.inner) };
   }
 }
