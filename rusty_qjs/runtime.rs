@@ -1,54 +1,49 @@
-use super::{context::JsContext, error::JsError};
-use libquickjs_sys as qjs;
-use std::{ffi::c_void, marker::PhantomData};
+use super::error::JsError;
+use std::{
+  ffi::c_void,
+  ptr::{self, NonNull},
+};
 
 #[derive(Debug)]
-pub struct JsRuntime {
-  inner: *mut qjs::JSRuntime,
-  _marker: PhantomData<*mut qjs::JSRuntime>,
-}
+pub struct JsRuntime(pub NonNull<libquickjs_sys::JSRuntime>);
 
 impl Drop for JsRuntime {
   fn drop(&mut self) {
-    dbg!("drop rt");
-    unsafe { qjs::JS_FreeRuntime(self.inner) };
+    unsafe { libquickjs_sys::JS_FreeRuntime(self.0.as_mut()) };
   }
 }
 
 impl Default for JsRuntime {
   fn default() -> Self {
-    let runtime = unsafe { qjs::JS_NewRuntime() };
-    Self {
-      inner: runtime,
-      _marker: PhantomData,
-    }
+    let rt = unsafe { libquickjs_sys::JS_NewRuntime() };
+    let rt = NonNull::new(rt).unwrap();
+    Self(rt)
   }
 }
 
 impl JsRuntime {
-  pub(crate) fn inner(&self) -> *mut qjs::JSRuntime {
-    self.inner
-  }
-
   // TODO: see rusty_v8, and write the bindings manually
   pub unsafe fn set_host_promise_rejection_tracker(
-    &self,
-    tracker: qjs::JSHostPromiseRejectionTracker,
+    &mut self,
+    tracker: libquickjs_sys::JSHostPromiseRejectionTracker,
     opaque: *mut c_void,
   ) {
-    qjs::JS_SetHostPromiseRejectionTracker(self.inner, tracker, opaque)
+    libquickjs_sys::JS_SetHostPromiseRejectionTracker(
+      self.0.as_mut(),
+      tracker,
+      opaque,
+    )
   }
 
-  pub fn execute_pending_job(&self) -> Result<bool, JsError> {
-    let runtime = JsRuntime::default();
-    let ctx = JsContext::new(&runtime);
-    let pctx = &mut ctx.inner();
-    let res = unsafe { qjs::JS_ExecutePendingJob(self.inner, pctx) };
+  pub fn execute_pending_job(&mut self) -> Result<bool, JsError> {
+    let pctx = &mut ptr::null_mut();
+    let res =
+      unsafe { libquickjs_sys::JS_ExecutePendingJob(self.0.as_mut(), pctx) };
     match res {
       0 => Ok(false),
       1 => Ok(true),
       1.. => panic!(),
-      _ => Err(ctx.into()),
+      _ => Err(JsError::dump_from_raw_context(*pctx)),
     }
   }
 }

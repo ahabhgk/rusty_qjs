@@ -1,50 +1,42 @@
 use super::{error::JsError, runtime::JsRuntime, value::JsValue};
-use libquickjs_sys as qjs;
-use std::{ffi::CString, rc::Rc};
+use std::{ffi::CString, ptr::NonNull};
 
 #[derive(Debug)]
-pub struct JsContext {
-  inner: *mut qjs::JSContext,
-}
+pub struct JsContext(pub NonNull<libquickjs_sys::JSContext>);
 
 impl Drop for JsContext {
   fn drop(&mut self) {
-    dbg!("drop ctx");
-    unsafe { qjs::JS_FreeContext(self.inner) };
+    unsafe { libquickjs_sys::JS_FreeContext(self.0.as_mut()) };
   }
 }
 
 impl JsContext {
-  pub fn new(runtime: &JsRuntime) -> Rc<Self> {
-    let context = unsafe { qjs::JS_NewContext(runtime.inner()) };
-    let context = Self { inner: context };
-    Rc::new(context)
-  }
-
-  pub fn from_inner(inner: *mut qjs::JSContext) -> Rc<Self> {
-    let context = Self { inner };
-    Rc::new(context)
-  }
-
-  pub(crate) fn inner(&self) -> *mut qjs::JSContext {
-    self.inner
+  pub fn new(runtime: &mut JsRuntime) -> Self {
+    let rt = unsafe { runtime.0.as_mut() };
+    let ctx = unsafe { libquickjs_sys::JS_NewContext(rt) };
+    let ctx = NonNull::new(ctx).unwrap();
+    Self(ctx)
   }
 
   /// is_module: module or global
   pub fn eval(
-    self: Rc<Self>,
+    &mut self,
     code: &str,
     name: &str,
     is_module: bool,
     compile_only: bool,
   ) -> Result<JsValue, JsError> {
     let eval_flags = match (is_module, compile_only) {
-      (true, true) => qjs::JS_EVAL_TYPE_MODULE | qjs::JS_EVAL_FLAG_COMPILE_ONLY,
-      (true, false) => qjs::JS_EVAL_TYPE_MODULE,
-      (false, true) => {
-        qjs::JS_EVAL_TYPE_GLOBAL | qjs::JS_EVAL_FLAG_COMPILE_ONLY
+      (true, true) => {
+        libquickjs_sys::JS_EVAL_TYPE_MODULE
+          | libquickjs_sys::JS_EVAL_FLAG_COMPILE_ONLY
       }
-      (false, false) => qjs::JS_EVAL_TYPE_GLOBAL,
+      (true, false) => libquickjs_sys::JS_EVAL_TYPE_MODULE,
+      (false, true) => {
+        libquickjs_sys::JS_EVAL_TYPE_GLOBAL
+          | libquickjs_sys::JS_EVAL_FLAG_COMPILE_ONLY
+      }
+      (false, false) => libquickjs_sys::JS_EVAL_TYPE_GLOBAL,
     } as _;
     let code_cstring = CString::new(code).unwrap();
     let input = code_cstring.as_ptr();
@@ -53,18 +45,25 @@ impl JsContext {
     let filename = name_cstring.as_ptr();
 
     let value = unsafe {
-      qjs::JS_Eval(self.inner, input, input_len, filename, eval_flags)
+      libquickjs_sys::JS_Eval(
+        self.0.as_mut(),
+        input,
+        input_len,
+        filename,
+        eval_flags,
+      )
     };
-    let value = JsValue::from_qjs(Rc::clone(&self), value);
+    let value = JsValue::new(self, value);
 
     if value.is_exception() {
-      return Err(self.into());
+      return Err(JsError::dump_from_context(self));
     }
     Ok(value)
   }
 
-  pub fn eval_function(self: Rc<Self>, func_obj: &JsValue) -> JsValue {
-    let value = unsafe { qjs::JS_EvalFunction(self.inner, func_obj.inner()) };
-    JsValue::from_qjs(self, value)
+  pub fn eval_function(&mut self, func_obj: &JsValue) -> JsValue {
+    let value =
+      unsafe { libquickjs_sys::JS_EvalFunction(self.0.as_mut(), func_obj.val) };
+    JsValue::new(self, value)
   }
 }

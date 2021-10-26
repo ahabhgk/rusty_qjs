@@ -105,18 +105,21 @@ pub struct JSValue {
   pub tag: i64,
 }
 
-pub struct JsValue(pub JSValue);
+pub struct JsValue {
+  value: JSValue,
+  ctx: *mut JSContext,
+}
 
 impl JsValue {
   pub fn new_big_int64(ctx: &mut JsContext, v: i64) -> Self {
     let ctx = unsafe { ctx.0.as_mut() };
     let value = unsafe { JS_NewBigInt64(ctx, v) };
-    Self(value)
+    Self { value, ctx }
   }
 
   pub fn new_big_uint64(ctx: &mut JsContext, v: u64) -> Self {
     let ctx = unsafe { ctx.0.as_mut() };
     let value = unsafe { JS_NewBigUint64(ctx, v) };
-    Self(value)
+    Self { value, ctx }
   }
 }

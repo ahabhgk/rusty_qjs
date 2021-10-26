@@ -2,6 +2,28 @@
 
 Safe abstraction for libquickjs_sys.
 
+## TODO
+
+```rust
+#[derive(Debug)]
+pub struct JsRuntime(pub NonNull<JSRuntime>);
+
+#[derive(Debug)]
+pub struct JsContext(pub NonNull<JSContext>);
+
+#[derive(Debug, ...)]
+pub struct JsValue {
+  value: JSValue,
+  ctx: NonNull<JSContext>,
+}
+
+#[derive(Debug, ...)]
+pub struct JsAtom {
+  atom: JSAtom,
+  ctx: NonNull<JSContext>,
+}
+```
+
 ## data type
 
 // DRAFT: 子类型多态？

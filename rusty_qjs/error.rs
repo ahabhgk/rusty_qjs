@@ -1,6 +1,5 @@
 use super::{context::JsContext, value::JsValue};
-use libquickjs_sys as qjs;
-use std::{error::Error, fmt::Display, rc::Rc};
+use std::{error::Error, fmt::Display, ptr::NonNull};
 
 #[derive(Debug, Clone)]
 pub struct JsError {
@@ -9,30 +8,27 @@ pub struct JsError {
   name: String,
 }
 
-impl From<Rc<JsContext>> for JsError {
-  fn from(ctx: Rc<JsContext>) -> Self {
-    let value = unsafe { qjs::JS_GetException(Rc::clone(&ctx).inner()) };
-    let value = JsValue::from_qjs(Rc::clone(&ctx), value);
-
-    let (name, message, stack) = if value.is_error(Rc::clone(&ctx)) {
-      let name = match value.get_property(Rc::clone(&ctx), "name") {
+impl From<JsValue> for JsError {
+  fn from(mut value: JsValue) -> Self {
+    let (name, message, stack) = if value.is_error() {
+      let name = match value.get_property("name") {
         Some(v) => v.into(),
         None => "Error".to_owned(),
       };
 
-      let message = match value.get_property(Rc::clone(&ctx), "message") {
+      let message = match value.get_property("message") {
         Some(v) => v.into(),
         None => "".to_owned(),
       };
 
-      let stack = match value.get_property(Rc::clone(&ctx), "stack") {
+      let stack = match value.get_property("stack") {
         Some(v) => v.into(),
         None => "".to_owned(),
       };
 
       (name, message, stack)
     } else {
-      let message = value.clone().into();
+      let message = String::from(value);
       ("Exception".to_owned(), message, "".to_owned())
     };
 
@@ -44,44 +40,22 @@ impl From<Rc<JsContext>> for JsError {
   }
 }
 
-// impl JsError {
-//   pub fn from_qjs_exception(ctx: Rc<JsContext>, value: &JsValue) -> Self {
-//     if !value.is_exception() {
-//       panic!("value is not an exception");
-//     }
+impl JsError {
+  // FIXME: move dump to cli
+  pub fn dump_from_context(ctx: &mut JsContext) -> Self {
+    JsError::dump_from_raw_context(unsafe { ctx.0.as_mut() })
+  }
 
-//     let value = unsafe { qjs::JS_GetException(Rc::clone(&ctx).inner()) };
-//     let value = JsValue::from_qjs(Rc::clone(&ctx), value);
-
-//     let (name, message, stack) = if value.is_error(Rc::clone(&ctx)) {
-//       let name = match value.get_property(Rc::clone(&ctx), "name") {
-//         Some(v) => v.into(),
-//         None => "Error".to_owned(),
-//       };
-
-//       let message = match value.get_property(Rc::clone(&ctx), "message") {
-//         Some(v) => v.into(),
-//         None => "".to_owned(),
-//       };
-
-//       let stack = match value.get_property(Rc::clone(&ctx), "stack") {
-//         Some(v) => v.into(),
-//         None => "".to_owned(),
-//       };
-
-//       (name, message, stack)
-//     } else {
-//       let message = value.clone().into();
-//       ("Exception".to_owned(), message, "".to_owned())
-//     };
-
-//     Self {
-//       name,
-//       stack,
-//       message,
-//     }
-//   }
-// }
+  pub fn dump_from_raw_context(ctx: *mut libquickjs_sys::JSContext) -> Self {
+    let exception = unsafe { libquickjs_sys::JS_GetException(ctx) };
+    let ctx = NonNull::new(ctx).unwrap();
+    let exception = JsValue {
+      ctx,
+      val: exception,
+    };
+    exception.into()
+  }
+}
 
 impl Error for JsError {}
 

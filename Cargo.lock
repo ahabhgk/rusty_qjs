@@ -601,15 +601,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qtok_core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "libquickjs-sys",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -655,6 +646,7 @@ name = "rqjs"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "libquickjs-sys",
 ]
 
 [[package]]
