@@ -13,7 +13,6 @@ use std::{
   task::Poll,
 };
 
-// FIXME:
 extern "C" fn host_promise_rejection_tracker(
   ctx: *mut libquickjs_sys::JSContext,
   _promise: libquickjs_sys::JSValue,
@@ -80,13 +79,20 @@ impl Qtok {
     let code = &code[..];
     let name = path.to_str().unwrap();
     let ctx = &mut self.global_context;
-    let mut ret = ctx.eval(code, name, true, true)?;
+
+    let mut ret = ctx.eval(code, name, true, true);
+    if ret.is_exception() {
+      return Err(self.dump_error().into());
+    }
+
     js_module_set_import_meta(ctx, &ret, true, is_main)?;
+
     // TODO: eval module, continue abstract eval?
     ret = ctx.eval_function(&ret);
     if ret.is_exception() {
-      return Err(JsError::dump_from_context(ctx).into());
+      return Err(self.dump_error().into());
     }
+
     Ok(ret)
   }
 
@@ -95,7 +101,11 @@ impl Qtok {
     name: &str,
     code: &str,
   ) -> Result<JsValue, JsError> {
-    self.global_context.eval(code, name, false, false)
+    let value = self.global_context.eval(code, name, false, false);
+    if value.is_exception() {
+      return Err(self.dump_error());
+    }
+    Ok(value)
   }
 
   pub async fn run_event_loop(&mut self) -> Result<(), JsError> {
@@ -123,6 +133,10 @@ impl Qtok {
       return Err(e.clone());
     }
     Ok(())
+  }
+
+  fn dump_error(&mut self) -> JsError {
+    self.global_context.get_exception().into()
   }
 }
 

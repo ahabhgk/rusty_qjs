@@ -1,3 +1,5 @@
+use crate::context::JsContext;
+
 use super::error::JsError;
 use std::{
   ffi::c_void,
@@ -42,8 +44,11 @@ impl JsRuntime {
     match res {
       0 => Ok(false),
       1 => Ok(true),
-      1.. => panic!(),
-      _ => Err(JsError::dump_from_raw_context(*pctx)),
+      2.. => panic!("JS_ExecutePendingJob never return >1"),
+      _ => {
+        let mut pctx = JsContext(NonNull::new(*pctx).unwrap());
+        Err(pctx.get_exception().into())
+      }
     }
   }
 }

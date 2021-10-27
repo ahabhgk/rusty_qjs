@@ -60,7 +60,7 @@ impl JsAtom {
     unsafe { JS_FreeAtom(ctx, self.0) };
   }
 
-  pub fn free_on_runtime(&self, rt: &mut JsRuntime) {
+  pub fn free_runtime(&self, rt: &mut JsRuntime) {
     let rt = unsafe { rt.0.as_mut() };
     unsafe { JS_FreeAtomRT(rt, self.0) };
   }

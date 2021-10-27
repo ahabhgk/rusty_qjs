@@ -1,5 +1,6 @@
-use super::{context::JsContext, value::JsValue};
-use std::{error::Error, fmt::Display, ptr::NonNull};
+use std::{error::Error, fmt::Display};
+
+use crate::value::JsValue;
 
 #[derive(Debug, Clone)]
 pub struct JsError {
@@ -37,23 +38,6 @@ impl From<JsValue> for JsError {
       stack,
       message,
     }
-  }
-}
-
-impl JsError {
-  // FIXME: move dump to cli
-  pub fn dump_from_context(ctx: &mut JsContext) -> Self {
-    JsError::dump_from_raw_context(unsafe { ctx.0.as_mut() })
-  }
-
-  pub fn dump_from_raw_context(ctx: *mut libquickjs_sys::JSContext) -> Self {
-    let exception = unsafe { libquickjs_sys::JS_GetException(ctx) };
-    let ctx = NonNull::new(ctx).unwrap();
-    let exception = JsValue {
-      ctx,
-      val: exception,
-    };
-    exception.into()
   }
 }
 

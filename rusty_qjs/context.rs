@@ -1,5 +1,6 @@
-use super::{error::JsError, runtime::JsRuntime, value::JsValue};
 use std::{ffi::CString, ptr::NonNull};
+
+use crate::{runtime::JsRuntime, value::JsValue};
 
 #[derive(Debug)]
 pub struct JsContext(pub NonNull<libquickjs_sys::JSContext>);
@@ -25,7 +26,7 @@ impl JsContext {
     name: &str,
     is_module: bool,
     compile_only: bool,
-  ) -> Result<JsValue, JsError> {
+  ) -> JsValue {
     let eval_flags = match (is_module, compile_only) {
       (true, true) => {
         libquickjs_sys::JS_EVAL_TYPE_MODULE
@@ -53,17 +54,17 @@ impl JsContext {
         eval_flags,
       )
     };
-    let value = JsValue::new(self, value);
-
-    if value.is_exception() {
-      return Err(JsError::dump_from_context(self));
-    }
-    Ok(value)
+    JsValue::new(self, value)
   }
 
   pub fn eval_function(&mut self, func_obj: &JsValue) -> JsValue {
     let value =
       unsafe { libquickjs_sys::JS_EvalFunction(self.0.as_mut(), func_obj.val) };
     JsValue::new(self, value)
+  }
+
+  pub fn get_exception(&mut self) -> JsValue {
+    let exception = unsafe { libquickjs_sys::JS_GetException(self.0.as_mut()) };
+    JsValue::new(self, exception)
   }
 }
