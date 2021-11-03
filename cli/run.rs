@@ -1,6 +1,5 @@
-use crate::{error::AnyError, module::js_module_set_import_meta};
+use crate::{error::AnyError, ext, module::js_module_set_import_meta};
 use futures::future::poll_fn;
-use libquickjs_sys::JS_DupValue;
 use rusty_qjs::{
   context::JsContext, error::JsError, runtime::JsRuntime, value::JsValue,
 };
@@ -22,7 +21,7 @@ extern "C" fn host_promise_rejection_tracker(
 ) {
   if is_handled == 0 {
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
-    unsafe { JS_DupValue(ctx, reason) };
+    unsafe { libquickjs_sys::JS_DupValue(ctx, reason) };
     let ctx = NonNull::new(ctx).unwrap();
     let reason = JsValue { ctx, val: reason };
     qtok.pending_promise_exceptions.push(JsError::from(reason))
@@ -58,6 +57,8 @@ impl Qtok {
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
     // tjs__add_builtins path, uuid, hashlib...
+    ext::console::add_console(&mut qtok.global_context).unwrap();
+
     qtok
   }
 

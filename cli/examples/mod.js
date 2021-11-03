@@ -1,1 +1,1 @@
-Promise.reject(1);
+console.log("hahah", this);

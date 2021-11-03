@@ -67,4 +67,10 @@ impl JsContext {
     let exception = unsafe { libquickjs_sys::JS_GetException(self.0.as_mut()) };
     JsValue::new(self, exception)
   }
+
+  pub fn get_global_object(&mut self) -> JsValue {
+    let global_object =
+      unsafe { libquickjs_sys::JS_GetGlobalObject(self.0.as_mut()) };
+    JsValue::new(self, global_object)
+  }
 }

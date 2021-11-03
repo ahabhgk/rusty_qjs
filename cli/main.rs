@@ -1,6 +1,7 @@
 mod error;
 mod module;
 mod run;
+mod ext;
 
 use clap::Clap;
 use error::AnyError;

@@ -11,4 +11,4 @@ description = "The extensible tiny JavaScript runtime built with QuickJS, tokio 
 path = "lib.rs"
 
 [dependencies]
-libquickjs-sys = { version = "0.10.0", features = ["patched"] }
+libquickjs-sys = { path="../libquickjs-sys" }

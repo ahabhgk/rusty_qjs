@@ -9,3 +9,8 @@ itest!(should_throw_promise_rejection {
   output: "2_throw_promise_rejection.js.out",
   exit_code: 1,
 });
+
+itest!(should_console_log {
+  args: "run 3_console_log.js",
+  output: "3_console_log.js.out",
+});

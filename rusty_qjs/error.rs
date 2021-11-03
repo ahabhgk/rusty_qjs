@@ -12,20 +12,11 @@ pub struct JsError {
 impl From<JsValue> for JsError {
   fn from(mut value: JsValue) -> Self {
     let (name, message, stack) = if value.is_error() {
-      let name = match value.get_property("name") {
-        Some(v) => v.into(),
-        None => "Error".to_owned(),
-      };
+      let name = value.get_property_str("name").into();
+      let message = value.get_property_str("message").into();
+      let stack = value.get_property_str("stack").into();
 
-      let message = match value.get_property("message") {
-        Some(v) => v.into(),
-        None => "".to_owned(),
-      };
-
-      let stack = match value.get_property("stack") {
-        Some(v) => v.into(),
-        None => "".to_owned(),
-      };
+      value.free();
 
       (name, message, stack)
     } else {
@@ -48,15 +39,3 @@ impl Display for JsError {
     write!(f, "{}: {}\n{}", self.name, self.message, self.stack)
   }
 }
-
-// impl TryFrom<qjs::JSValue> for JsError {
-//     type Error = AnyError;
-
-//     fn try_from(value: qjs::JSValue) -> Result<Self, Self::Error> {
-//         let is_exception = unsafe { qjs::JS_IsException(value) };
-//         if is_exception {
-//             return Err(AnyError::msg("is not an error"));
-//         }
-//         Ok(Self::from(value))
-//     }
-// }
