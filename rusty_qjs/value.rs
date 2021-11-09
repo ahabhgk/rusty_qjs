@@ -5,6 +5,13 @@ use std::{
 
 use crate::{context::JsContext, error::JsError};
 
+type JsFunction = fn(
+  *mut libquickjs_sys::JSContext,
+  libquickjs_sys::JSValue,
+  i32,
+  *mut libquickjs_sys::JSValue,
+) -> libquickjs_sys::JSValue;
+
 pub struct JsValue {
   pub val: libquickjs_sys::JSValue,
   pub ctx: NonNull<libquickjs_sys::JSContext>,
@@ -77,9 +84,9 @@ impl JsValue {
     Self::new(ctx, obj)
   }
 
-  pub fn new_c_function(
+  pub fn new_function(
     ctx: &mut JsContext,
-    func: *mut libquickjs_sys::JSCFunction,
+    func: JsFunction,
     name: &str,
     len: i32,
   ) -> Self {
@@ -87,7 +94,7 @@ impl JsValue {
     let val = unsafe {
       libquickjs_sys::JS_NewCFunction(
         ctx.0.as_mut(),
-        func,
+        std::mem::transmute(func as *mut ()),
         name_cstring.as_ptr(),
         len,
       )

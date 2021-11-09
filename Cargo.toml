@@ -1,2 +1,2 @@
 [workspace]
-members = ["cli", "qjs_sys", "rqjs", "libquickjs-sys"]
+members = ["cli", "libquickjs-sys"]
