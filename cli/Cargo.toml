@@ -12,6 +12,7 @@ name = "qtok"
 
 [dependencies]
 rusty_qjs = { path = "../rusty_qjs" }
+rusty_qjs_derive = { path = "../rusty_qjs_derive" }
 libquickjs-sys = { path = "../libquickjs-sys" }
 
 anyhow = "1.0.44"

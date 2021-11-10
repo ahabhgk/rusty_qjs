@@ -569,6 +569,7 @@ dependencies = [
  "libquickjs-sys",
  "os_pipe",
  "rusty_qjs",
+ "rusty_qjs_derive",
  "tokio",
 ]
 

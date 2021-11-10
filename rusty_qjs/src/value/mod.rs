@@ -9,7 +9,7 @@ use crate::context::JsContext;
 
 use self::error::JsError;
 
-type JsFunction = fn(
+type JsFunction = extern "C" fn(
   *mut libquickjs_sys::JSContext,
   libquickjs_sys::JSValue,
   i32,
@@ -114,12 +114,12 @@ impl JsValue {
     Self::from_raw(raw_context, val)
   }
 
-  pub fn new_undefined(ctx: &mut JsContext) -> Self {
+  pub fn new_undefined(ctx: &JsContext) -> Self {
     let val = libquickjs_sys::JSValue {
       u: libquickjs_sys::JSValueUnion { int32: 0 },
       tag: libquickjs_sys::JS_TAG_UNDEFINED.into(),
     };
-    let raw_context = unsafe { ctx.0.as_mut() };
+    let raw_context = ctx.0.as_ptr();
     Self::from_raw(raw_context, val)
   }
 
