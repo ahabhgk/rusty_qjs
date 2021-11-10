@@ -1,4 +1,4 @@
-use std::{io::Write, ptr::NonNull};
+use std::io::Write;
 
 use rusty_qjs::{context::JsContext, value::JsValue};
 
@@ -10,16 +10,13 @@ fn js_print(
   argc: i32,
   argv: *mut libquickjs_sys::JSValue,
 ) -> libquickjs_sys::JSValue {
-  let ctx = NonNull::new(ctx).unwrap();
   let mut stdout = std::io::stdout();
   for i in 0..argc {
     if i != 0 {
       stdout.write(b" ").unwrap();
     }
-    let val = JsValue {
-      ctx,
-      val: unsafe { *argv.offset(i as isize) },
-    };
+    let raw_value = unsafe { *argv.offset(i as isize) };
+    let val = JsValue::from_raw(ctx, raw_value);
     stdout.write(String::from(val).as_bytes()).unwrap();
   }
   stdout.write(b"\n").unwrap();

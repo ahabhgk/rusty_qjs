@@ -9,17 +9,11 @@ use std::{
 #[derive(Debug)]
 pub struct JsRuntime(pub NonNull<libquickjs_sys::JSRuntime>);
 
-impl Drop for JsRuntime {
-  fn drop(&mut self) {
-    unsafe { libquickjs_sys::JS_FreeRuntime(self.0.as_mut()) };
-  }
-}
-
 impl Default for JsRuntime {
   fn default() -> Self {
     let rt = unsafe { libquickjs_sys::JS_NewRuntime() };
-    let rt = NonNull::new(rt).unwrap();
-    Self(rt)
+    let runtime = NonNull::new(rt).unwrap();
+    Self(runtime)
   }
 }
 
@@ -46,9 +40,13 @@ impl JsRuntime {
       1 => Ok(true),
       2.. => panic!("JS_ExecutePendingJob never return >1"),
       _ => {
-        let mut pctx = JsContext(NonNull::new(*pctx).unwrap());
+        let mut pctx = JsContext::from_raw(*pctx);
         Err(pctx.get_exception().into())
       }
     }
+  }
+
+  pub fn free(&mut self) {
+    unsafe { libquickjs_sys::JS_FreeRuntime(self.0.as_mut()) };
   }
 }

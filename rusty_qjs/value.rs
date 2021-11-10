@@ -13,8 +13,8 @@ type JsFunction = fn(
 ) -> libquickjs_sys::JSValue;
 
 pub struct JsValue {
-  pub val: libquickjs_sys::JSValue,
-  pub ctx: NonNull<libquickjs_sys::JSContext>,
+  pub raw_value: libquickjs_sys::JSValue,
+  pub context: NonNull<libquickjs_sys::JSContext>,
 }
 
 // #[repr(C)]
@@ -55,14 +55,14 @@ impl From<JsValue> for String {
   fn from(mut value: JsValue) -> Self {
     let ptr = unsafe {
       libquickjs_sys::JS_ToCStringLen2(
-        value.ctx.as_mut(),
+        value.context.as_mut(),
         ptr::null_mut(),
-        value.val,
+        value.raw_value,
         0,
       ) as *mut _
     };
     let cstr = unsafe { CStr::from_ptr(ptr) };
-    unsafe { libquickjs_sys::JS_FreeCString(value.ctx.as_mut(), ptr) };
+    unsafe { libquickjs_sys::JS_FreeCString(value.context.as_mut(), ptr) };
     let s = cstr.to_str().unwrap();
     s.to_owned()
   }
@@ -70,18 +70,25 @@ impl From<JsValue> for String {
 
 impl JsValue {
   pub fn free(&mut self) {
-    unsafe { libquickjs_sys::JS_FreeValue(self.ctx.as_mut(), self.val) };
+    unsafe {
+      libquickjs_sys::JS_FreeValue(self.context.as_mut(), self.raw_value)
+    };
   }
 
-  pub fn new(ctx: &mut JsContext, val: libquickjs_sys::JSValue) -> Self {
-    let ctx = unsafe { ctx.0.as_mut() };
-    let ctx = NonNull::new(ctx).unwrap();
-    Self { ctx, val }
+  pub fn from_raw(
+    raw_context: *mut libquickjs_sys::JSContext,
+    raw_value: libquickjs_sys::JSValue,
+  ) -> Self {
+    Self {
+      context: NonNull::new(raw_context).unwrap(),
+      raw_value,
+    }
   }
 
   pub fn new_object(ctx: &mut JsContext) -> Self {
-    let obj = unsafe { libquickjs_sys::JS_NewObject(ctx.0.as_mut()) };
-    Self::new(ctx, obj)
+    let raw_context = unsafe { ctx.0.as_mut() };
+    let obj = unsafe { libquickjs_sys::JS_NewObject(raw_context) };
+    Self::from_raw(raw_context, obj)
   }
 
   pub fn new_function(
@@ -90,16 +97,17 @@ impl JsValue {
     name: &str,
     len: i32,
   ) -> Self {
+    let raw_context = unsafe { ctx.0.as_mut() };
     let name_cstring = CString::new(name).unwrap();
     let val = unsafe {
       libquickjs_sys::JS_NewCFunction(
-        ctx.0.as_mut(),
+        raw_context,
         std::mem::transmute(func as *mut ()),
         name_cstring.as_ptr(),
         len,
       )
     };
-    Self::new(ctx, val)
+    Self::from_raw(raw_context, val)
   }
 
   pub fn new_undefined(ctx: &mut JsContext) -> Self {
@@ -107,16 +115,21 @@ impl JsValue {
       u: libquickjs_sys::JSValueUnion { int32: 0 },
       tag: libquickjs_sys::JS_TAG_UNDEFINED.into(),
     };
-    Self::new(ctx, val)
+    let raw_context = unsafe { ctx.0.as_mut() };
+    Self::from_raw(raw_context, val)
   }
 
   pub fn get_property_str(&mut self, prop: &str) -> Self {
-    let ctx = unsafe { self.ctx.as_mut() };
+    let raw_context = unsafe { self.context.as_mut() };
     let prop_cstring = CString::new(prop).unwrap();
-    let val = unsafe {
-      libquickjs_sys::JS_GetPropertyStr(ctx, self.val, prop_cstring.as_ptr())
+    let raw_value = unsafe {
+      libquickjs_sys::JS_GetPropertyStr(
+        raw_context,
+        self.raw_value,
+        prop_cstring.as_ptr(),
+      )
     };
-    Self { ctx: self.ctx, val }
+    Self::from_raw(raw_context, raw_value)
   }
 
   pub fn set_property_str(
@@ -124,19 +137,19 @@ impl JsValue {
     prop: &str,
     value: JsValue,
   ) -> Result<bool, JsError> {
-    let ctx = unsafe { self.ctx.as_mut() };
+    let raw_context = unsafe { self.context.as_mut() };
     let prop_cstring = CString::new(prop).unwrap();
     let result = unsafe {
       libquickjs_sys::JS_SetPropertyStr(
-        ctx,
-        self.val,
+        raw_context,
+        self.raw_value,
         prop_cstring.as_ptr(),
-        value.val,
+        value.raw_value,
       )
     };
     match result {
       -1 => {
-        let mut ctx = JsContext(NonNull::new(ctx).unwrap());
+        let mut ctx = JsContext::from_raw(raw_context);
         Err(ctx.get_exception().into())
       }
       0 => Ok(false),
@@ -146,14 +159,16 @@ impl JsValue {
   }
 
   pub fn is_error(&mut self) -> bool {
-    unsafe { libquickjs_sys::JS_IsError(self.ctx.as_mut(), self.val) == 1 }
+    unsafe {
+      libquickjs_sys::JS_IsError(self.context.as_mut(), self.raw_value) == 1
+    }
   }
 
   pub fn is_exception(&self) -> bool {
-    unsafe { libquickjs_sys::JS_IsException(self.val) }
+    unsafe { libquickjs_sys::JS_IsException(self.raw_value) }
   }
 
   pub fn is_undefined(&self) -> bool {
-    unsafe { libquickjs_sys::JS_IsUndefined(self.val) }
+    unsafe { libquickjs_sys::JS_IsUndefined(self.raw_value) }
   }
 }

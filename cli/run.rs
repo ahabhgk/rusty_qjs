@@ -8,7 +8,6 @@ use std::{
   ffi::c_void,
   fs,
   path::{Path, PathBuf},
-  ptr::NonNull,
   task::Poll,
 };
 
@@ -22,25 +21,31 @@ extern "C" fn host_promise_rejection_tracker(
   if is_handled == 0 {
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
     unsafe { libquickjs_sys::JS_DupValue(ctx, reason) };
-    let ctx = NonNull::new(ctx).unwrap();
-    let reason = JsValue { ctx, val: reason };
+    let reason = JsValue::from_raw(ctx, reason);
     qtok.pending_promise_exceptions.push(JsError::from(reason))
   }
 }
 
 struct Qtok {
-  global_context: JsContext,
+  js_context: JsContext,
   js_runtime: JsRuntime,
   pending_promise_exceptions: Vec<JsError>,
   // pending_ops:
 }
 
+impl Drop for Qtok {
+  fn drop(&mut self) {
+    self.js_context.free();
+    self.js_runtime.free();
+  }
+}
+
 impl Qtok {
   pub fn new() -> Self {
     let mut js_runtime = JsRuntime::default();
-    let global_context = JsContext::new(&mut js_runtime);
+    let js_context = JsContext::new(&mut js_runtime);
     let mut qtok = Self {
-      global_context,
+      js_context,
       js_runtime,
       pending_promise_exceptions: Vec::new(),
     };
@@ -57,7 +62,7 @@ impl Qtok {
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
     // tjs__add_builtins path, uuid, hashlib...
-    ext::console::add_console(&mut qtok.global_context).unwrap();
+    ext::console::add_console(&mut qtok.js_context).unwrap();
 
     qtok
   }
@@ -79,9 +84,9 @@ impl Qtok {
     let code = fs::read_to_string(path)?;
     let code = &code[..];
     let name = path.to_str().unwrap();
-    let ctx = &mut self.global_context;
+    let ctx = &mut self.js_context;
 
-    let mut ret = ctx.eval(code, name, true, true);
+    let mut ret = ctx.compile_module(code, name);
     if ret.is_exception() {
       return Err(self.dump_error().into());
     }
@@ -95,18 +100,6 @@ impl Qtok {
     }
 
     Ok(ret)
-  }
-
-  pub fn eval_script(
-    &mut self,
-    name: &str,
-    code: &str,
-  ) -> Result<JsValue, JsError> {
-    let value = self.global_context.eval(code, name, false, false);
-    if value.is_exception() {
-      return Err(self.dump_error());
-    }
-    Ok(value)
   }
 
   pub async fn run_event_loop(&mut self) -> Result<(), JsError> {
@@ -137,7 +130,7 @@ impl Qtok {
   }
 
   fn dump_error(&mut self) -> JsError {
-    self.global_context.get_exception().into()
+    self.js_context.get_exception().into()
   }
 }
 
