@@ -20,7 +20,7 @@ macro_rules! itest(
 }
 );
 
-/// from: https://github.com/denoland/deno/blob/main/test_util/src/lib.rs#L1496
+/// from: https://github.com/denoland/deno/blob/a632dc5b0d321e704bc56e2ffd4582494c3efbea/test_util/src/lib.rs#L1651
 #[derive(Default)]
 pub struct CheckOutputIntegrationTest {
   args: &'static str,
