@@ -7,9 +7,6 @@ license = "MIT"
 repository = "https://github.com/ahabhgk/qtok.js"
 description = "Safe abstraction for libquickjs_sys"
 
-[lib]
-path = "lib.rs"
-
 [dependencies]
 libquickjs-sys = { path="../libquickjs-sys" }
 thiserror = "1.0.30"

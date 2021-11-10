@@ -9,7 +9,6 @@ description = "The extensible tiny JavaScript runtime built with QuickJS, tokio 
 
 [[bin]]
 name = "qtok"
-path = "main.rs"
 
 [dependencies]
 rusty_qjs = { path = "../rusty_qjs" }

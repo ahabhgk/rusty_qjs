@@ -7,8 +7,6 @@ license = "MIT"
 repository = "https://github.com/ahabhgk/qtok.js"
 description = "rusty_qjs procedural macros"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 proc-macro2 = "1.0.32"
 quote = "1.0.10"
