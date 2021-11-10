@@ -1,6 +1,5 @@
-use crate::context::JsContext;
+use crate::{context::JsContext, value::error::JsError};
 
-use super::error::JsError;
 use std::{
   ffi::c_void,
   ptr::{self, NonNull},

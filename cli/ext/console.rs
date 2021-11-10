@@ -1,23 +1,26 @@
 use std::io::Write;
 
-use rusty_qjs::{context::JsContext, value::JsValue};
+use rusty_qjs::{
+  call_context::CallContext, context::JsContext, value::JsValue,
+};
 
 use crate::error::AnyError;
 
 fn js_print(
   ctx: *mut libquickjs_sys::JSContext,
-  _this_val: libquickjs_sys::JSValue,
+  this_val: libquickjs_sys::JSValue,
   argc: i32,
   argv: *mut libquickjs_sys::JSValue,
 ) -> libquickjs_sys::JSValue {
   let mut ctx = JsContext::from_raw(ctx);
+  let mut call_ctx = CallContext::new(&mut ctx, this_val, argc, argv);
+
   let mut stdout = std::io::stdout();
   for i in 0..argc {
     if i != 0 {
       stdout.write(b" ").unwrap();
     }
-    let raw_value = unsafe { *argv.offset(i as isize) };
-    let val = JsValue::from_raw(unsafe { ctx.0.as_mut() }, raw_value);
+    let val = call_ctx.get(i).unwrap();
     stdout.write(String::from(val).as_bytes()).unwrap();
   }
   stdout.write(b"\n").unwrap();

@@ -2,7 +2,9 @@ use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
 use rusty_qjs::{
-  context::JsContext, error::JsError, runtime::JsRuntime, value::JsValue,
+  context::JsContext,
+  runtime::JsRuntime,
+  value::{error::JsError, JsValue},
 };
 
 use crate::{error::AnyError, ext, module::js_module_set_import_meta};

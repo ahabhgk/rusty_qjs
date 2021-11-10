@@ -1,9 +1,13 @@
+pub mod error;
+
 use std::{
   ffi::{CStr, CString},
   ptr::{self, NonNull},
 };
 
-use crate::{context::JsContext, error::JsError};
+use crate::context::JsContext;
+
+use self::error::JsError;
 
 type JsFunction = fn(
   *mut libquickjs_sys::JSContext,
