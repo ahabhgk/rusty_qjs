@@ -1,43 +1,44 @@
-use std::{ffi::CString, ptr::NonNull};
+use std::ffi::CString;
 
 use crate::{runtime::JsRuntime, value::JsValue};
 
 #[derive(Debug)]
-pub struct JsContext(pub NonNull<libquickjs_sys::JSContext>);
+pub struct JsContext {
+  pub raw_context: *mut libquickjs_sys::JSContext,
+}
 
 impl JsContext {
-  pub fn new(runtime: &mut JsRuntime) -> Self {
-    let ctx = unsafe { libquickjs_sys::JS_NewContext(runtime.0.as_mut()) };
+  pub fn new(runtime: &JsRuntime) -> Self {
+    let ctx = unsafe { libquickjs_sys::JS_NewContext(runtime.raw_runtime) };
     Self::from_raw(ctx)
   }
 
   pub fn from_raw(raw_context: *mut libquickjs_sys::JSContext) -> Self {
-    let context = NonNull::new(raw_context).unwrap();
-    Self(context)
+    Self { raw_context }
   }
 
   pub fn free(&mut self) {
-    unsafe { libquickjs_sys::JS_FreeContext(self.0.as_mut()) };
+    unsafe { libquickjs_sys::JS_FreeContext(self.raw_context) };
   }
 
-  pub fn eval_module(&mut self, code: &str, name: &str) -> JsValue {
+  pub fn eval_module(&self, code: &str, name: &str) -> JsValue {
     self.eval(code, name, true, false)
   }
 
-  pub fn compile_module(&mut self, code: &str, name: &str) -> JsValue {
+  pub fn compile_module(&self, code: &str, name: &str) -> JsValue {
     self.eval(code, name, true, true)
   }
 
-  pub fn eval_script(&mut self, code: &str, name: &str) -> JsValue {
+  pub fn eval_script(&self, code: &str, name: &str) -> JsValue {
     self.eval(code, name, false, false)
   }
 
-  pub fn compile_script(&mut self, code: &str, name: &str) -> JsValue {
+  pub fn compile_script(&self, code: &str, name: &str) -> JsValue {
     self.eval(code, name, false, true)
   }
 
   fn eval(
-    &mut self,
+    &self,
     code: &str,
     name: &str,
     is_module: bool,
@@ -61,35 +62,34 @@ impl JsContext {
     let name_cstring = CString::new(name).unwrap();
     let filename = name_cstring.as_ptr();
 
-    let raw_context = unsafe { self.0.as_mut() };
     let value = unsafe {
       libquickjs_sys::JS_Eval(
-        raw_context,
+        self.raw_context,
         input,
         input_len,
         filename,
         eval_flags,
       )
     };
-    JsValue::from_raw(raw_context, value)
+    JsValue::from_raw(self.raw_context, value)
   }
 
-  pub fn eval_function(&mut self, func_obj: &JsValue) -> JsValue {
-    let raw_context = unsafe { self.0.as_mut() };
+  pub fn eval_function(&self, func_obj: &JsValue) -> JsValue {
+    let raw_context = self.raw_context;
     let value = unsafe {
       libquickjs_sys::JS_EvalFunction(raw_context, func_obj.raw_value)
     };
     JsValue::from_raw(raw_context, value)
   }
 
-  pub fn get_exception(&mut self) -> JsValue {
-    let raw_context = unsafe { self.0.as_mut() };
+  pub fn get_exception(&self) -> JsValue {
+    let raw_context = self.raw_context;
     let exception = unsafe { libquickjs_sys::JS_GetException(raw_context) };
     JsValue::from_raw(raw_context, exception)
   }
 
-  pub fn get_global_object(&mut self) -> JsValue {
-    let raw_context = unsafe { self.0.as_mut() };
+  pub fn get_global_object(&self) -> JsValue {
+    let raw_context = self.raw_context;
     let global_object =
       unsafe { libquickjs_sys::JS_GetGlobalObject(raw_context) };
     JsValue::from_raw(raw_context, global_object)

@@ -26,13 +26,13 @@ impl<'ctx> CallContext<'ctx> {
     if index >= self.argc {
       Err(Error::ArgumentsIndexOutOfRange)
     } else {
-      Ok(JsValue::from_raw(self.js_context.0.as_ptr(), unsafe {
+      Ok(JsValue::from_raw(self.js_context.raw_context, unsafe {
         *self.argv.offset(index as isize)
       }))
     }
   }
 
   pub fn this(&self) -> JsValue {
-    JsValue::from_raw(self.js_context.0.as_ptr(), self.raw_this)
+    JsValue::from_raw(self.js_context.raw_context, self.raw_this)
   }
 }

@@ -4,7 +4,7 @@ use crate::{core::Qtok, error::AnyError};
 
 pub async fn run(script_path: PathBuf) -> Result<(), AnyError> {
   let script_path = env::current_dir()?.join(script_path);
-  let mut qtok = Qtok::new();
+  let qtok = Qtok::new();
   qtok.eval_module(&script_path, true)?;
   // qtok.eval_script("<global>", "window.dispatchEvent(new Event('load'));")?;
   qtok.run_event_loop().await?;

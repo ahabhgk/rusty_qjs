@@ -40,9 +40,9 @@ impl Drop for Qtok {
 
 impl Qtok {
   pub fn new() -> Self {
-    let mut js_runtime = JsRuntime::default();
-    let js_context = JsContext::new(&mut js_runtime);
-    let mut qtok = Self {
+    let js_runtime = JsRuntime::default();
+    let js_context = JsContext::new(&js_runtime);
+    let qtok = Self {
       js_context,
       js_runtime,
       pending_promise_exceptions: Vec::new(),
@@ -50,7 +50,7 @@ impl Qtok {
     // JS_SetMaxStackSize
     // JS_SetModuleLoaderFunc
     // JS_SetHostPromiseRejectionTracker
-    let opaque = { &mut qtok as *mut _ as *mut c_void };
+    let opaque = { &qtok as *const _ as *mut c_void };
     unsafe {
       qtok.js_runtime.set_host_promise_rejection_tracker(
         Some(host_promise_rejection_tracker),
@@ -60,13 +60,13 @@ impl Qtok {
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
     // tjs__add_builtins path, uuid, hashlib...
-    ext::console::add_console(&mut qtok.js_context).unwrap();
+    ext::console::add_console(&qtok.js_context).unwrap();
 
     qtok
   }
 
   pub fn eval_module(
-    &mut self,
+    &self,
     path: &Path,
     is_main: bool,
   ) -> Result<(), AnyError> {
@@ -75,14 +75,14 @@ impl Qtok {
   }
 
   fn eval_file(
-    &mut self,
+    &self,
     path: &Path,
     is_main: bool,
   ) -> Result<JsValue, AnyError> {
     let code = fs::read_to_string(path)?;
     let code = &code[..];
     let name = path.to_str().unwrap();
-    let ctx = &mut self.js_context;
+    let ctx = &self.js_context;
 
     let mut ret = ctx.compile_module(code, name);
     if ret.is_exception() {
@@ -100,7 +100,7 @@ impl Qtok {
     Ok(ret)
   }
 
-  pub async fn run_event_loop(&mut self) -> Result<(), JsError> {
+  pub async fn run_event_loop(&self) -> Result<(), JsError> {
     poll_fn(|_cx| {
       self.perform_microtasks()?;
       self.check_promise_exceptions()?;
@@ -109,7 +109,7 @@ impl Qtok {
     .await
   }
 
-  fn perform_microtasks(&mut self) -> Result<(), JsError> {
+  fn perform_microtasks(&self) -> Result<(), JsError> {
     loop {
       let has_microtask = self.js_runtime.execute_pending_job()?;
       if !has_microtask {
@@ -120,14 +120,14 @@ impl Qtok {
     Ok(())
   }
 
-  fn check_promise_exceptions(&mut self) -> Result<(), JsError> {
+  fn check_promise_exceptions(&self) -> Result<(), JsError> {
     if let Some(e) = self.pending_promise_exceptions.first() {
       return Err(e.clone());
     }
     Ok(())
   }
 
-  fn dump_error(&mut self) -> JsError {
+  fn dump_error(&self) -> JsError {
     self.js_context.get_exception().into()
   }
 }

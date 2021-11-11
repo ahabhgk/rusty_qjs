@@ -21,7 +21,7 @@ fn print(call_ctx: CallContext) -> JsValue {
   JsValue::new_undefined(&call_ctx.js_context)
 }
 
-pub fn add_console(ctx: &mut JsContext) -> Result<(), AnyError> {
+pub fn add_console(ctx: &JsContext) -> Result<(), AnyError> {
   let mut global_obj = ctx.get_global_object();
   let mut console = JsValue::new_object(ctx);
   let func = JsValue::new_function(ctx, print, "log", 1);

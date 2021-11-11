@@ -2,7 +2,7 @@ pub mod error;
 
 use std::{
   ffi::{CStr, CString},
-  ptr::{self, NonNull},
+  ptr,
 };
 
 use crate::context::JsContext;
@@ -18,7 +18,7 @@ type JsFunction = extern "C" fn(
 
 pub struct JsValue {
   pub raw_value: libquickjs_sys::JSValue,
-  pub context: NonNull<libquickjs_sys::JSContext>,
+  pub raw_context: *mut libquickjs_sys::JSContext,
 }
 
 // #[repr(C)]
@@ -56,17 +56,17 @@ pub struct JsValue {
 // }
 
 impl From<JsValue> for String {
-  fn from(mut value: JsValue) -> Self {
+  fn from(value: JsValue) -> Self {
     let ptr = unsafe {
       libquickjs_sys::JS_ToCStringLen2(
-        value.context.as_mut(),
+        value.raw_context,
         ptr::null_mut(),
         value.raw_value,
         0,
       ) as *mut _
     };
     let cstr = unsafe { CStr::from_ptr(ptr) };
-    unsafe { libquickjs_sys::JS_FreeCString(value.context.as_mut(), ptr) };
+    unsafe { libquickjs_sys::JS_FreeCString(value.raw_context, ptr) };
     let s = cstr.to_str().unwrap();
     s.to_owned()
   }
@@ -74,9 +74,7 @@ impl From<JsValue> for String {
 
 impl JsValue {
   pub fn free(&mut self) {
-    unsafe {
-      libquickjs_sys::JS_FreeValue(self.context.as_mut(), self.raw_value)
-    };
+    unsafe { libquickjs_sys::JS_FreeValue(self.raw_context, self.raw_value) };
   }
 
   pub fn from_raw(
@@ -84,24 +82,24 @@ impl JsValue {
     raw_value: libquickjs_sys::JSValue,
   ) -> Self {
     Self {
-      context: NonNull::new(raw_context).unwrap(),
+      raw_context,
       raw_value,
     }
   }
 
-  pub fn new_object(ctx: &mut JsContext) -> Self {
-    let raw_context = unsafe { ctx.0.as_mut() };
+  pub fn new_object(ctx: &JsContext) -> Self {
+    let raw_context = ctx.raw_context;
     let obj = unsafe { libquickjs_sys::JS_NewObject(raw_context) };
     Self::from_raw(raw_context, obj)
   }
 
   pub fn new_function(
-    ctx: &mut JsContext,
+    ctx: &JsContext,
     func: JsFunction,
     name: &str,
     len: i32,
   ) -> Self {
-    let raw_context = unsafe { ctx.0.as_mut() };
+    let raw_context = ctx.raw_context;
     let name_cstring = CString::new(name).unwrap();
     let val = unsafe {
       libquickjs_sys::JS_NewCFunction(
@@ -115,25 +113,24 @@ impl JsValue {
   }
 
   pub fn new_undefined(ctx: &JsContext) -> Self {
+    let raw_context = ctx.raw_context;
     let val = libquickjs_sys::JSValue {
       u: libquickjs_sys::JSValueUnion { int32: 0 },
       tag: libquickjs_sys::JS_TAG_UNDEFINED.into(),
     };
-    let raw_context = ctx.0.as_ptr();
     Self::from_raw(raw_context, val)
   }
 
-  pub fn get_property_str(&mut self, prop: &str) -> Self {
-    let raw_context = unsafe { self.context.as_mut() };
+  pub fn get_property_str(&self, prop: &str) -> Self {
     let prop_cstring = CString::new(prop).unwrap();
     let raw_value = unsafe {
       libquickjs_sys::JS_GetPropertyStr(
-        raw_context,
+        self.raw_context,
         self.raw_value,
         prop_cstring.as_ptr(),
       )
     };
-    Self::from_raw(raw_context, raw_value)
+    Self::from_raw(self.raw_context, raw_value)
   }
 
   pub fn set_property_str(
@@ -141,31 +138,25 @@ impl JsValue {
     prop: &str,
     value: JsValue,
   ) -> Result<bool, JsError> {
-    let raw_context = unsafe { self.context.as_mut() };
     let prop_cstring = CString::new(prop).unwrap();
     let result = unsafe {
       libquickjs_sys::JS_SetPropertyStr(
-        raw_context,
+        self.raw_context,
         self.raw_value,
         prop_cstring.as_ptr(),
         value.raw_value,
       )
     };
     match result {
-      -1 => {
-        let mut ctx = JsContext::from_raw(raw_context);
-        Err(ctx.get_exception().into())
-      }
+      -1 => Err(JsContext::from_raw(self.raw_context).get_exception().into()),
       0 => Ok(false),
       1 => Ok(true),
       _ => panic!("JS_SetPropertyStr return unexpected"),
     }
   }
 
-  pub fn is_error(&mut self) -> bool {
-    unsafe {
-      libquickjs_sys::JS_IsError(self.context.as_mut(), self.raw_value) == 1
-    }
+  pub fn is_error(&self) -> bool {
+    unsafe { libquickjs_sys::JS_IsError(self.raw_context, self.raw_value) == 1 }
   }
 
   pub fn is_exception(&self) -> bool {
