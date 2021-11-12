@@ -1,4 +1,4 @@
-use crate::{context::JsContext, value::error::JsError};
+use crate::{context::JsContext, error::Error};
 
 use std::{ffi::c_void, ptr};
 
@@ -14,6 +14,12 @@ impl Default for JsRuntime {
   }
 }
 
+// impl Drop for JsRuntime {
+//   fn drop(&mut self) {
+//     unsafe { libquickjs_sys::JS_FreeRuntime(self.raw_runtime) };
+//   }
+// }
+
 impl JsRuntime {
   // TODO: see rusty_v8, and write the bindings manually
   pub unsafe fn set_host_promise_rejection_tracker(
@@ -28,7 +34,7 @@ impl JsRuntime {
     )
   }
 
-  pub fn execute_pending_job(&self) -> Result<bool, JsError> {
+  pub fn execute_pending_job(&self) -> Result<bool, Error> {
     let pctx = &mut ptr::null_mut();
     let res =
       unsafe { libquickjs_sys::JS_ExecutePendingJob(self.raw_runtime, pctx) };

@@ -1046,4 +1046,8 @@ int JS_SetModuleExportList(JSContext *ctx, JSModuleDef *m,
 } /* extern "C" { */
 #endif
 
+#ifdef QTOK_DEBUG
+void QTOKDBG_log_JSContext(JSContext *ctx)
+#endif
+
 #endif /* QUICKJS_H */

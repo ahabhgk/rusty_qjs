@@ -54034,3 +54034,14 @@ void JS_AddIntrinsicTypedArrays(JSContext *ctx)
     JS_AddIntrinsicAtomics(ctx);
 #endif
 }
+
+/* qtok debug */
+// #define QTOK_DEBUG
+#ifdef QTOK_DEBUG
+void QTOKDBG_log_JSContext(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    printf("JSAtom count=%d size=%d hash_size=%d:\n",
+           rt->atom_count, rt->atom_size, rt->atom_hash_size);
+}
+#endif

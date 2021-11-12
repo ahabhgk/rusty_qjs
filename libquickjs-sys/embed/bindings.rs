@@ -3933,3 +3933,8 @@ fn bindgen_test_layout___va_list_tag() {
         )
     );
 }
+
+// QTOK_DEBUG
+extern "C" {
+    pub fn QTOKDBG_log_JSContext(ctx: *mut JSContext);
+}
