@@ -1,4 +1,4 @@
-use crate::{context::JsContext, error::Error, value::JsValue};
+use crate::{context::JsContext, error::Error, handle::Local, value::JsValue};
 
 pub struct CallContext<'ctx> {
   pub js_context: &'ctx mut JsContext,
@@ -22,17 +22,21 @@ impl<'ctx> CallContext<'ctx> {
     }
   }
 
-  pub fn get(&self, index: i32) -> Result<JsValue, Error> {
+  pub fn get(&self, index: i32) -> Result<Local<JsValue>, Error> {
     if index >= self.argc {
       Err(Error::ArgumentsIndexOutOfRange)
     } else {
-      Ok(JsValue::from_raw(self.js_context.raw_context, unsafe {
-        *self.argv.offset(index as isize)
-      }))
+      Ok(Local::new(JsValue::from_raw(
+        self.js_context.raw_context,
+        unsafe { *self.argv.offset(index as isize) },
+      )))
     }
   }
 
-  pub fn this(&self) -> JsValue {
-    JsValue::from_raw(self.js_context.raw_context, self.raw_this)
+  pub fn this(&self) -> Local<JsValue> {
+    Local::new(JsValue::from_raw(
+      self.js_context.raw_context,
+      self.raw_this,
+    ))
   }
 }

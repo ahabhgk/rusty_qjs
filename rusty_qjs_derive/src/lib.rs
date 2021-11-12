@@ -83,7 +83,9 @@ pub fn js_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
       #signature #(#fn_block)*
 
       // TODO: catch_unwind
-      #new_fn_name(call_ctx).raw_value
+      let ret = #new_fn_name(call_ctx);
+      let ret = ret.to_reference();
+      ret.raw_value
     }
   };
   expanded.into()

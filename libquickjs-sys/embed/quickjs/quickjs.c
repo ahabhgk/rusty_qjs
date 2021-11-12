@@ -2342,6 +2342,15 @@ JSRuntime *JS_GetRuntime(JSContext *ctx)
     return ctx->rt;
 }
 
+
+
+void DEBUG_log(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    printf("JSAtom count=%d size=%d hash_size=%d:\n",
+           rt->atom_count, rt->atom_size, rt->atom_hash_size);
+}
+
 static void update_stack_limit(JSRuntime *rt)
 {
     if (rt->stack_size == 0) {

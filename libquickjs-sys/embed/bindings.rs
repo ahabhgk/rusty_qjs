@@ -1651,6 +1651,7 @@ extern "C" {
 }
 extern "C" {
     pub fn JS_GetRuntime(ctx: *mut JSContext) -> *mut JSRuntime;
+    pub fn DEBUG_log(ctx: *mut JSContext);
 }
 extern "C" {
     pub fn JS_SetClassProto(ctx: *mut JSContext, class_id: JSClassID, obj: JSValue);

@@ -353,6 +353,7 @@ JSContext *JS_DupContext(JSContext *ctx);
 void *JS_GetContextOpaque(JSContext *ctx);
 void JS_SetContextOpaque(JSContext *ctx, void *opaque);
 JSRuntime *JS_GetRuntime(JSContext *ctx);
+void DEBUG_log(JSContext *ctx);
 void JS_SetClassProto(JSContext *ctx, JSClassID class_id, JSValue obj);
 JSValue JS_GetClassProto(JSContext *ctx, JSClassID class_id);
 

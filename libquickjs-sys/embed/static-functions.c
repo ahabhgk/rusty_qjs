@@ -17,11 +17,11 @@ void JS_FreeValueRT_real(JSRuntime *rt, JSValue v) {
     return JS_FreeValueRT(rt, v);
 }
 
-void JS_DupValue_real(JSContext *ctx, JSValue v) {
-    JS_DupValue(ctx, v);
+JSValue JS_DupValue_real(JSContext *ctx, JSValue v) {
+    return JS_DupValue(ctx, v);
 }
 
-JSValue JS_DupValueRT_real(JSRuntime *rt, JSValueConst v) {
+JSValue JS_DupValueRT_real(JSRuntime *rt, JSValue v) {
     return JS_DupValueRT(rt, v);
 }
 

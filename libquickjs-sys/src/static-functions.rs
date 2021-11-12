@@ -1,8 +1,8 @@
 
 extern "C" {
     fn JS_ValueGetTag_real(v: JSValue) -> i32;
-    fn JS_DupValue_real(ctx: *mut JSContext, v: JSValue);
-    fn JS_DupValueRT_real(rt: *mut JSRuntime, v: JSValue);
+    fn JS_DupValue_real(ctx: *mut JSContext, v: JSValue) -> JSValue;
+    fn JS_DupValueRT_real(rt: *mut JSRuntime, v: JSValue) -> JSValue;
     fn JS_FreeValue_real(ctx: *mut JSContext, v: JSValue);
     fn JS_FreeValueRT_real(rt: *mut JSRuntime, v: JSValue);
     fn JS_NewBool_real(ctx: *mut JSContext, v: bool) -> JSValue;
@@ -34,13 +34,13 @@ pub unsafe fn JS_ValueGetTag(v: JSValue) -> i32 {
 }
 
 /// Increment the refcount of this value
-pub unsafe fn JS_DupValue(ctx: *mut JSContext, v: JSValue) {
-    JS_DupValue_real(ctx, v);
+pub unsafe fn JS_DupValue(ctx: *mut JSContext, v: JSValue) -> JSValue {
+    JS_DupValue_real(ctx, v)
 }
 
 /// Increment the refcount of this value
-pub unsafe fn JS_DupValueRT(rt: *mut JSRuntime, v: JSValue) {
-    JS_DupValueRT_real(rt, v);
+pub unsafe fn JS_DupValueRT(rt: *mut JSRuntime, v: JSValue) -> JSValue {
+    JS_DupValueRT_real(rt, v)
 }
 
 /// Decrement the refcount of this value

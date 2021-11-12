@@ -1,13 +1,13 @@
-pub mod error;
-
 use std::{
   ffi::{CStr, CString},
   ptr,
 };
 
-use crate::context::JsContext;
-
-use self::error::JsError;
+use crate::{
+  context::JsContext,
+  error::Error,
+  handle::{Local, QuickjsRc},
+};
 
 type JsFunction = extern "C" fn(
   *mut libquickjs_sys::JSContext,
@@ -55,8 +55,21 @@ pub struct JsValue {
 //   }
 // }
 
-impl From<JsValue> for String {
-  fn from(value: JsValue) -> Self {
+impl QuickjsRc for JsValue {
+  fn free(&mut self) {
+    unsafe { libquickjs_sys::JS_FreeValue(self.raw_context, self.raw_value) };
+  }
+
+  fn dup(&self) -> Self {
+    let raw_value =
+      unsafe { libquickjs_sys::JS_DupValue(self.raw_context, self.raw_value) };
+    Self::from_raw(self.raw_context, raw_value)
+  }
+}
+
+impl From<Local<JsValue>> for String {
+  fn from(value: Local<JsValue>) -> Self {
+    let value = value.to_reference();
     let ptr = unsafe {
       libquickjs_sys::JS_ToCStringLen2(
         value.raw_context,
@@ -72,11 +85,28 @@ impl From<JsValue> for String {
   }
 }
 
-impl JsValue {
-  pub fn free(&mut self) {
-    unsafe { libquickjs_sys::JS_FreeValue(self.raw_context, self.raw_value) };
-  }
+impl From<Local<JsValue>> for Error {
+  fn from(value: Local<JsValue>) -> Self {
+    let (name, message, stack) = if value.is_error() {
+      let name = value.get_property_str("name").into();
+      let message = value.get_property_str("message").into();
+      let stack = value.get_property_str("stack").into();
 
+      (name, message, stack)
+    } else {
+      let message = String::from(value);
+      ("Exception".to_owned(), message, "".to_owned())
+    };
+
+    Self::JSContextError {
+      name,
+      stack,
+      message,
+    }
+  }
+}
+
+impl JsValue {
   pub fn from_raw(
     raw_context: *mut libquickjs_sys::JSContext,
     raw_value: libquickjs_sys::JSValue,
@@ -98,7 +128,7 @@ impl JsValue {
     func: JsFunction,
     name: &str,
     len: i32,
-  ) -> Self {
+  ) -> Local<Self> {
     let raw_context = ctx.raw_context;
     let name_cstring = CString::new(name).unwrap();
     let val = unsafe {
@@ -109,19 +139,19 @@ impl JsValue {
         len,
       )
     };
-    Self::from_raw(raw_context, val)
+    Local::new(Self::from_raw(raw_context, val))
   }
 
-  pub fn new_undefined(ctx: &JsContext) -> Self {
+  pub fn new_undefined(ctx: &JsContext) -> Local<Self> {
     let raw_context = ctx.raw_context;
     let val = libquickjs_sys::JSValue {
       u: libquickjs_sys::JSValueUnion { int32: 0 },
       tag: libquickjs_sys::JS_TAG_UNDEFINED.into(),
     };
-    Self::from_raw(raw_context, val)
+    Local::new(Self::from_raw(raw_context, val))
   }
 
-  pub fn get_property_str(&self, prop: &str) -> Self {
+  pub fn get_property_str(&self, prop: &str) -> Local<Self> {
     let prop_cstring = CString::new(prop).unwrap();
     let raw_value = unsafe {
       libquickjs_sys::JS_GetPropertyStr(
@@ -130,14 +160,15 @@ impl JsValue {
         prop_cstring.as_ptr(),
       )
     };
-    Self::from_raw(self.raw_context, raw_value)
+    Local::new(Self::from_raw(self.raw_context, raw_value))
   }
 
   pub fn set_property_str(
-    &mut self,
+    &self,
     prop: &str,
-    value: JsValue,
-  ) -> Result<bool, JsError> {
+    value: Local<JsValue>,
+  ) -> Result<bool, Error> {
+    let value = value.to_reference();
     let prop_cstring = CString::new(prop).unwrap();
     let result = unsafe {
       libquickjs_sys::JS_SetPropertyStr(
@@ -148,7 +179,7 @@ impl JsValue {
       )
     };
     match result {
-      -1 => Err(JsContext::from_raw(self.raw_context).get_exception().into()),
+      -1 => Err(Local::new(JsContext::from_raw(self.raw_context).get_exception()).into()),
       0 => Ok(false),
       1 => Ok(true),
       _ => panic!("JS_SetPropertyStr return unexpected"),
