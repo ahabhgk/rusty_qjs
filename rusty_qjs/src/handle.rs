@@ -1,6 +1,5 @@
 use std::{
-  fmt::Debug,
-  mem,
+  fmt, mem,
   ops::{Deref, DerefMut},
   ptr::NonNull,
 };
@@ -11,15 +10,7 @@ pub trait QuickjsRc {
   fn dup(&self) -> Self;
 }
 
-// #[derive(Debug)]
 pub struct Local<T: QuickjsRc>(pub NonNull<T>);
-
-impl<T: QuickjsRc + Debug> Debug for Local<T> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let inner = unsafe { self.0.as_ref() };
-    write!(f, "{:?}", inner)
-  }
-}
 
 impl<T: QuickjsRc> Drop for Local<T> {
   fn drop(&mut self) {
@@ -44,6 +35,12 @@ impl<T: QuickjsRc> DerefMut for Local<T> {
 impl<T: QuickjsRc> From<Reference<T>> for Local<T> {
   fn from(rc: Reference<T>) -> Self {
     Self(rc.0)
+  }
+}
+
+impl<T: QuickjsRc + fmt::Debug> fmt::Debug for Local<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt::Debug::fmt(&**self, f)
   }
 }
 
@@ -92,6 +89,12 @@ impl<T: QuickjsRc> From<Local<T>> for Reference<T> {
     let v = lc.0;
     mem::forget(lc);
     Self(v)
+  }
+}
+
+impl<T: QuickjsRc + fmt::Debug> fmt::Debug for Reference<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt::Debug::fmt(&**self, f)
   }
 }
 

@@ -1,6 +1,6 @@
 use std::{
   ffi::{CStr, CString},
-  ptr,
+  fmt, ptr,
 };
 
 use crate::{
@@ -21,36 +21,45 @@ pub struct JsValue {
   pub raw_context: *mut libquickjs_sys::JSContext,
 }
 
-// #[repr(C)]
-// #[derive(Copy, Clone)]
-// pub union JSValueUnion {
-//     pub int32: i32,
-//     pub float64: f64,
-//     pub ptr: *mut ::std::os::raw::c_void,
-//     _bindgen_union_align: u64,
-// }
-// #[repr(C)]
-// #[derive(Copy, Clone)]
-// pub struct JSValue {
-//     pub u: JSValueUnion,
-//     pub tag: i64,
-// }
-impl std::fmt::Debug for JsValue {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+// TODO: move libquickjs_sys into this crate, impl Debug for JSValue
+impl fmt::Debug for JsValue {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let tag = match self.raw_value.tag as i32 {
+      libquickjs_sys::JS_TAG_BIG_DECIMAL => "BigDecimal",
+      libquickjs_sys::JS_TAG_BIG_INT => "BigInt",
+      libquickjs_sys::JS_TAG_BIG_FLOAT => "BigFloat",
+      libquickjs_sys::JS_TAG_SYMBOL => "Symbol",
+      libquickjs_sys::JS_TAG_STRING => "String",
+      libquickjs_sys::JS_TAG_MODULE => "Module (internal)",
+      libquickjs_sys::JS_TAG_FUNCTION_BYTECODE => "FunctionBytecode (internal)",
+      libquickjs_sys::JS_TAG_OBJECT => "Object",
+      libquickjs_sys::JS_TAG_INT => "Int",
+      libquickjs_sys::JS_TAG_BOOL => "Bool",
+      libquickjs_sys::JS_TAG_NULL => "Null",
+      libquickjs_sys::JS_TAG_UNDEFINED => "Undefined",
+      libquickjs_sys::JS_TAG_UNINITIALIZED => "Uninitialized",
+      libquickjs_sys::JS_TAG_CATCH_OFFSET => "CatchOffset",
+      libquickjs_sys::JS_TAG_EXCEPTION => "Exception",
+      libquickjs_sys::JS_TAG_FLOAT64 => "Float64",
+      _ => panic!("Unknown tag"),
+    };
     write!(
       f,
       r#"JsValue {{
-        context: {:p},
-        inner: {{
-          u: {{
-            ptr: {:p}
-          }},
-          tag: {:?},
-        }},
-      }}"#,
+  context: {:p},
+  inner: {{
+    u: {{
+      int32: {:?}, float64: {:?},
+      ptr: {:p}
+    }},
+    tag: {:?},
+  }},
+}}"#,
       self.raw_context,
+      unsafe { self.raw_value.u.int32 },
+      unsafe { self.raw_value.u.float64 },
       unsafe { self.raw_value.u.ptr },
-      self.raw_value.tag,
+      tag,
     )
   }
 }
