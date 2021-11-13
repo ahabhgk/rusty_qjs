@@ -23,12 +23,11 @@ fn print(call_ctx: CallContext) -> Local<JsValue> {
 
 pub fn add_console(ctx: &JsContext) -> Result<(), AnyError> {
   let global_obj = ctx.get_global_object();
-  let global_obj = Local::new(global_obj);
   let console = JsValue::new_object(ctx);
-  let console = Local::new(console);
   let func = JsValue::new_function(ctx, print, "log", 1);
 
   console.set_property_str("log", func)?;
   global_obj.set_property_str("console", console)?;
+
   Ok(())
 }

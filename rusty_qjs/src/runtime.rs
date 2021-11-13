@@ -1,4 +1,4 @@
-use crate::{context::JsContext, error::Error, handle::Local};
+use crate::{context::JsContext, error::Error};
 
 use std::{ffi::c_void, ptr};
 
@@ -42,7 +42,7 @@ impl JsRuntime {
       0 => Ok(false),
       1 => Ok(true),
       2.. => panic!("JS_ExecutePendingJob never return >1"),
-      _ => Err(Local::new(JsContext::from_raw(*pctx).get_exception()).into()),
+      _ => Err(JsContext::from_raw(*pctx).get_exception().into()),
     }
   }
 

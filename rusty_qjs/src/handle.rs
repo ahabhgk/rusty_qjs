@@ -1,4 +1,5 @@
 use std::{
+  fmt::Debug,
   mem,
   ops::{Deref, DerefMut},
   ptr::NonNull,
@@ -10,7 +11,15 @@ pub trait QuickjsRc {
   fn dup(&self) -> Self;
 }
 
+// #[derive(Debug)]
 pub struct Local<T: QuickjsRc>(pub NonNull<T>);
+
+impl<T: QuickjsRc + Debug> Debug for Local<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let inner = unsafe { self.0.as_ref() };
+    write!(f, "{:?}", inner)
+  }
+}
 
 impl<T: QuickjsRc> Drop for Local<T> {
   fn drop(&mut self) {
@@ -39,14 +48,10 @@ impl<T: QuickjsRc> From<Reference<T>> for Local<T> {
 }
 
 impl<T: QuickjsRc> Local<T> {
-  // FIXME!!!
   pub fn new(v: T) -> Self {
-    Self::from_raw(&v as *const T)
-  }
-
-  // FIXME!!!
-  pub fn from_raw(v: *const T) -> Self {
-    let v = NonNull::new(v as *mut _).unwrap();
+    // this way to get *mut T, 'as' has potential unsafety
+    let p = Box::into_raw(Box::new(v));
+    let v = NonNull::new(p).unwrap();
     Self(v)
   }
 
@@ -92,11 +97,8 @@ impl<T: QuickjsRc> From<Local<T>> for Reference<T> {
 
 impl<T: QuickjsRc> Reference<T> {
   pub fn new(v: T) -> Self {
-    Self::from_raw(&v)
-  }
-
-  pub fn from_raw(v: *const T) -> Self {
-    let v = NonNull::new(v as *mut _).unwrap();
+    let p = Box::into_raw(Box::new(v));
+    let v = NonNull::new(p).unwrap();
     Self(v)
   }
 
@@ -107,46 +109,16 @@ impl<T: QuickjsRc> Reference<T> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{
-    context::JsContext, handle::Local, runtime::JsRuntime, value::JsValue,
-  };
+  use crate::{context::JsContext, runtime::JsRuntime, value::JsValue};
 
   #[test]
-  fn wtf_new_object() {
+  fn new_with_same_context() {
     let rt = JsRuntime::default();
     let ctx = JsContext::new(&rt);
 
-    fn new_non_local_object(ctx: &JsContext) -> JsValue {
-      let raw_context = ctx.raw_context;
-      let obj = unsafe { libquickjs_sys::JS_NewObject(raw_context) };
-      JsValue::from_raw(raw_context, obj)
-    }
-    let value1 = new_non_local_object(&ctx);
-    let value1_raw = &value1 as *const JsValue;
-    let value2 = Local::from_raw(value1_raw);
+    let o1 = JsValue::new_object(&ctx);
+    let o2 = JsValue::new_object(&ctx);
 
-    let value3 = new_non_local_object(&ctx);
-    let value3 = Local::new(value3);
-
-    fn new_local_object(ctx: &JsContext) -> Local<JsValue> {
-      let raw_context = ctx.raw_context;
-      let obj = unsafe { libquickjs_sys::JS_NewObject(raw_context) };
-      let v = JsValue::from_raw(raw_context, obj);
-      Local::from_raw(&v as *const JsValue)
-    }
-
-    let value4 = new_local_object(&ctx);
-
-    unsafe {
-      libquickjs_sys::DEBUG_log(value1.raw_context);
-      libquickjs_sys::DEBUG_log(value2.raw_context);
-
-      libquickjs_sys::DEBUG_log(value3.raw_context);
-
-      libquickjs_sys::DEBUG_log(value4.raw_context);
-    };
+    assert_eq!(o1.raw_context, o2.raw_context);
   }
-
-  // see cli/core#L127
-  fn wtf_dump_error() {}
 }

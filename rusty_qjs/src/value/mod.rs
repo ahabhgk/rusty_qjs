@@ -35,28 +35,32 @@ pub struct JsValue {
 //     pub u: JSValueUnion,
 //     pub tag: i64,
 // }
-// impl Debug for JsValue {
-//   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//     write!(
-//       f,
-//       r#"JsValue {{
-//         context: {:p},
-//         inner: {{
-//           u: {{
-//             ptr: {:p}
-//           }},
-//           tag: {:?},
-//         }},
-//       }}"#,
-//       self.context,
-//       unsafe { self.inner.u.ptr },
-//       self.inner.tag,
-//     )
-//   }
-// }
+impl std::fmt::Debug for JsValue {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      r#"JsValue {{
+        context: {:p},
+        inner: {{
+          u: {{
+            ptr: {:p}
+          }},
+          tag: {:?},
+        }},
+      }}"#,
+      self.raw_context,
+      unsafe { self.raw_value.u.ptr },
+      self.raw_value.tag,
+    )
+  }
+}
 
 impl QuickjsRc for JsValue {
   fn free(&mut self) {
+    // JS_TAG_MODULE never freed, see quickjs.c#L5518
+    if self.raw_value.tag == libquickjs_sys::JS_TAG_MODULE.into() {
+      return;
+    }
     unsafe { libquickjs_sys::JS_FreeValue(self.raw_context, self.raw_value) };
   }
 
@@ -117,10 +121,10 @@ impl JsValue {
     }
   }
 
-  pub fn new_object(ctx: &JsContext) -> Self {
+  pub fn new_object(ctx: &JsContext) -> Local<Self> {
     let raw_context = ctx.raw_context;
     let obj = unsafe { libquickjs_sys::JS_NewObject(raw_context) };
-    Self::from_raw(raw_context, obj)
+    Local::new(Self::from_raw(raw_context, obj))
   }
 
   pub fn new_function(
@@ -179,7 +183,7 @@ impl JsValue {
       )
     };
     match result {
-      -1 => Err(Local::new(JsContext::from_raw(self.raw_context).get_exception()).into()),
+      -1 => Err(JsContext::from_raw(self.raw_context).get_exception().into()),
       0 => Ok(false),
       1 => Ok(true),
       _ => panic!("JS_SetPropertyStr return unexpected"),

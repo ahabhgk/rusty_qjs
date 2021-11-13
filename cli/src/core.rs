@@ -1,7 +1,13 @@
 use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
-use rusty_qjs::{context::JsContext, error::Error, handle::{Local, QuickjsRc}, runtime::JsRuntime, value::JsValue};
+use rusty_qjs::{
+  context::JsContext,
+  error::Error,
+  handle::{Local, QuickjsRc},
+  runtime::JsRuntime,
+  value::JsValue,
+};
 
 use crate::{error::AnyError, ext, module::js_module_set_import_meta};
 
@@ -94,7 +100,7 @@ impl Qtok {
       return Err(self.dump_error().into());
     }
 
-    Ok(Local::new(ret))
+    Ok(ret)
   }
 
   pub async fn run_event_loop(&self) -> Result<(), Error> {
@@ -125,6 +131,6 @@ impl Qtok {
   }
 
   fn dump_error(&self) -> Error {
-    Local::new(self.js_context.get_exception()).into()
+    self.js_context.get_exception().into()
   }
 }

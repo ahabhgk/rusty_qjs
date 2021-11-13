@@ -1651,7 +1651,6 @@ extern "C" {
 }
 extern "C" {
     pub fn JS_GetRuntime(ctx: *mut JSContext) -> *mut JSRuntime;
-    pub fn DEBUG_log(ctx: *mut JSContext);
 }
 extern "C" {
     pub fn JS_SetClassProto(ctx: *mut JSContext, class_id: JSClassID, obj: JSValue);
@@ -3933,4 +3932,9 @@ fn bindgen_test_layout___va_list_tag() {
             stringify!(reg_save_area)
         )
     );
+}
+
+// QTOK_DEBUG
+extern "C" {
+    pub fn QTOKDBG_log_JSContext(ctx: *mut JSContext);
 }
