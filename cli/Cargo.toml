@@ -11,12 +11,11 @@ description = "The extensible tiny JavaScript runtime built with QuickJS, tokio 
 name = "qtok"
 
 [dependencies]
-rusty_qjs = { path = "../rusty_qjs" }
-rusty_qjs_derive = { path = "../rusty_qjs_derive" }
-libquickjs-sys = { path = "../libquickjs-sys" }
+rusty_qjs = { path = "../" }
+rusty_qjs_derive = { path = "../derive" }
 
 anyhow = "1.0.44"
-clap = "3.0.0-beta.4"
+clap = "3.0.0-beta.5"
 tokio = { version = "1.12.0", features = ["full"] }
 futures = "0.3.17"
 

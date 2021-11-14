@@ -8,8 +8,10 @@ repository = "https://github.com/ahabhgk/qtok.js"
 description = "Safe abstraction for libquickjs_sys"
 
 [dependencies]
-libquickjs-sys = { path="libquickjs-sys" }
 thiserror = "1.0.30"
 
 [build-dependencies]
 cc = { version = "1.0", features = ["parallel"] }
+
+[workspace]
+members = ["./derive", "./cli"]

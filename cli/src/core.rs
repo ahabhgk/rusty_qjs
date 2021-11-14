@@ -6,21 +6,22 @@ use rusty_qjs::{
   error::Error,
   handle::{Local, QuickjsRc},
   runtime::JsRuntime,
+  sys,
   value::JsValue,
 };
 
 use crate::{error::AnyError, ext, module::js_module_set_import_meta};
 
 extern "C" fn host_promise_rejection_tracker(
-  ctx: *mut libquickjs_sys::JSContext,
-  _promise: libquickjs_sys::JSValue,
-  reason: libquickjs_sys::JSValue,
+  ctx: *mut sys::JSContext,
+  _promise: sys::JSValue,
+  reason: sys::JSValue,
   is_handled: ::std::os::raw::c_int,
   opaque: *mut ::std::os::raw::c_void,
 ) {
   if is_handled == 0 {
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
-    unsafe { libquickjs_sys::JS_DupValue(ctx, reason) };
+    unsafe { sys::JS_DupValue(ctx, reason) };
     let reason = Local::new(JsValue::from_raw(ctx, reason));
     qtok.pending_promise_exceptions.push(Error::from(reason))
   }

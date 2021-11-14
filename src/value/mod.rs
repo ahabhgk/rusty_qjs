@@ -7,40 +7,41 @@ use crate::{
   context::JsContext,
   error::Error,
   handle::{Local, QuickjsRc},
+  sys,
 };
 
 type JsFunction = extern "C" fn(
-  *mut libquickjs_sys::JSContext,
-  libquickjs_sys::JSValue,
+  *mut sys::JSContext,
+  sys::JSValue,
   i32,
-  *mut libquickjs_sys::JSValue,
-) -> libquickjs_sys::JSValue;
+  *mut sys::JSValue,
+) -> sys::JSValue;
 
 pub struct JsValue {
-  pub raw_value: libquickjs_sys::JSValue,
-  pub raw_context: *mut libquickjs_sys::JSContext,
+  pub raw_value: sys::JSValue,
+  pub raw_context: *mut sys::JSContext,
 }
 
-// TODO: move libquickjs_sys into this crate, impl Debug for JSValue
+// TODO: move sys into this crate, impl Debug for JSValue
 impl fmt::Debug for JsValue {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let tag = match self.raw_value.tag as i32 {
-      libquickjs_sys::JS_TAG_BIG_DECIMAL => "BigDecimal",
-      libquickjs_sys::JS_TAG_BIG_INT => "BigInt",
-      libquickjs_sys::JS_TAG_BIG_FLOAT => "BigFloat",
-      libquickjs_sys::JS_TAG_SYMBOL => "Symbol",
-      libquickjs_sys::JS_TAG_STRING => "String",
-      libquickjs_sys::JS_TAG_MODULE => "Module (internal)",
-      libquickjs_sys::JS_TAG_FUNCTION_BYTECODE => "FunctionBytecode (internal)",
-      libquickjs_sys::JS_TAG_OBJECT => "Object",
-      libquickjs_sys::JS_TAG_INT => "Int",
-      libquickjs_sys::JS_TAG_BOOL => "Bool",
-      libquickjs_sys::JS_TAG_NULL => "Null",
-      libquickjs_sys::JS_TAG_UNDEFINED => "Undefined",
-      libquickjs_sys::JS_TAG_UNINITIALIZED => "Uninitialized",
-      libquickjs_sys::JS_TAG_CATCH_OFFSET => "CatchOffset",
-      libquickjs_sys::JS_TAG_EXCEPTION => "Exception",
-      libquickjs_sys::JS_TAG_FLOAT64 => "Float64",
+      sys::JS_TAG_BIG_DECIMAL => "BigDecimal",
+      sys::JS_TAG_BIG_INT => "BigInt",
+      sys::JS_TAG_BIG_FLOAT => "BigFloat",
+      sys::JS_TAG_SYMBOL => "Symbol",
+      sys::JS_TAG_STRING => "String",
+      sys::JS_TAG_MODULE => "Module (internal)",
+      sys::JS_TAG_FUNCTION_BYTECODE => "FunctionBytecode (internal)",
+      sys::JS_TAG_OBJECT => "Object",
+      sys::JS_TAG_INT => "Int",
+      sys::JS_TAG_BOOL => "Bool",
+      sys::JS_TAG_NULL => "Null",
+      sys::JS_TAG_UNDEFINED => "Undefined",
+      sys::JS_TAG_UNINITIALIZED => "Uninitialized",
+      sys::JS_TAG_CATCH_OFFSET => "CatchOffset",
+      sys::JS_TAG_EXCEPTION => "Exception",
+      sys::JS_TAG_FLOAT64 => "Float64",
       _ => "Unknown (unexpected)",
     };
     write!(
@@ -67,15 +68,15 @@ impl fmt::Debug for JsValue {
 impl QuickjsRc for JsValue {
   fn free(&mut self) {
     // JS_TAG_MODULE never freed, see quickjs.c#L5518
-    if self.raw_value.tag == libquickjs_sys::JS_TAG_MODULE.into() {
+    if self.raw_value.tag == sys::JS_TAG_MODULE.into() {
       return;
     }
-    unsafe { libquickjs_sys::JS_FreeValue(self.raw_context, self.raw_value) };
+    unsafe { sys::JS_FreeValue(self.raw_context, self.raw_value) };
   }
 
   fn dup(&self) -> Self {
     let raw_value =
-      unsafe { libquickjs_sys::JS_DupValue(self.raw_context, self.raw_value) };
+      unsafe { sys::JS_DupValue(self.raw_context, self.raw_value) };
     Self::from_raw(self.raw_context, raw_value)
   }
 }
@@ -84,7 +85,7 @@ impl From<Local<JsValue>> for String {
   fn from(value: Local<JsValue>) -> Self {
     let value = value.to_reference();
     let ptr = unsafe {
-      libquickjs_sys::JS_ToCStringLen2(
+      sys::JS_ToCStringLen2(
         value.raw_context,
         ptr::null_mut(),
         value.raw_value,
@@ -92,7 +93,7 @@ impl From<Local<JsValue>> for String {
       ) as *mut _
     };
     let cstr = unsafe { CStr::from_ptr(ptr) };
-    unsafe { libquickjs_sys::JS_FreeCString(value.raw_context, ptr) };
+    unsafe { sys::JS_FreeCString(value.raw_context, ptr) };
     let s = cstr.to_str().unwrap();
     s.to_owned()
   }
@@ -121,8 +122,8 @@ impl From<Local<JsValue>> for Error {
 
 impl JsValue {
   pub fn from_raw(
-    raw_context: *mut libquickjs_sys::JSContext,
-    raw_value: libquickjs_sys::JSValue,
+    raw_context: *mut sys::JSContext,
+    raw_value: sys::JSValue,
   ) -> Self {
     Self {
       raw_context,
@@ -132,7 +133,7 @@ impl JsValue {
 
   pub fn new_object(ctx: &JsContext) -> Local<Self> {
     let raw_context = ctx.raw_context;
-    let obj = unsafe { libquickjs_sys::JS_NewObject(raw_context) };
+    let obj = unsafe { sys::JS_NewObject(raw_context) };
     Local::new(Self::from_raw(raw_context, obj))
   }
 
@@ -145,7 +146,7 @@ impl JsValue {
     let raw_context = ctx.raw_context;
     let name_cstring = CString::new(name).unwrap();
     let val = unsafe {
-      libquickjs_sys::JS_NewCFunction(
+      sys::JS_NewCFunction(
         raw_context,
         std::mem::transmute(func as *mut ()),
         name_cstring.as_ptr(),
@@ -157,9 +158,9 @@ impl JsValue {
 
   pub fn new_undefined(ctx: &JsContext) -> Local<Self> {
     let raw_context = ctx.raw_context;
-    let val = libquickjs_sys::JSValue {
-      u: libquickjs_sys::JSValueUnion { int32: 0 },
-      tag: libquickjs_sys::JS_TAG_UNDEFINED.into(),
+    let val = sys::JSValue {
+      u: sys::JSValueUnion { int32: 0 },
+      tag: sys::JS_TAG_UNDEFINED.into(),
     };
     Local::new(Self::from_raw(raw_context, val))
   }
@@ -167,7 +168,7 @@ impl JsValue {
   pub fn get_property_str(&self, prop: &str) -> Local<Self> {
     let prop_cstring = CString::new(prop).unwrap();
     let raw_value = unsafe {
-      libquickjs_sys::JS_GetPropertyStr(
+      sys::JS_GetPropertyStr(
         self.raw_context,
         self.raw_value,
         prop_cstring.as_ptr(),
@@ -184,7 +185,7 @@ impl JsValue {
     let value = value.to_reference();
     let prop_cstring = CString::new(prop).unwrap();
     let result = unsafe {
-      libquickjs_sys::JS_SetPropertyStr(
+      sys::JS_SetPropertyStr(
         self.raw_context,
         self.raw_value,
         prop_cstring.as_ptr(),
@@ -200,14 +201,14 @@ impl JsValue {
   }
 
   pub fn is_error(&self) -> bool {
-    unsafe { libquickjs_sys::JS_IsError(self.raw_context, self.raw_value) == 1 }
+    unsafe { sys::JS_IsError(self.raw_context, self.raw_value) == 1 }
   }
 
   pub fn is_exception(&self) -> bool {
-    unsafe { libquickjs_sys::JS_IsException(self.raw_value) }
+    unsafe { sys::JS_IsException(self.raw_value) }
   }
 
   pub fn is_undefined(&self) -> bool {
-    unsafe { libquickjs_sys::JS_IsUndefined(self.raw_value) }
+    unsafe { sys::JS_IsUndefined(self.raw_value) }
   }
 }

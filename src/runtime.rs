@@ -1,15 +1,15 @@
-use crate::{context::JsContext, error::Error};
+use crate::{context::JsContext, error::Error, sys};
 
 use std::{ffi::c_void, ptr};
 
 #[derive(Debug)]
 pub struct JsRuntime {
-  pub raw_runtime: *mut libquickjs_sys::JSRuntime,
+  pub raw_runtime: *mut sys::JSRuntime,
 }
 
 impl Default for JsRuntime {
   fn default() -> Self {
-    let raw_runtime = unsafe { libquickjs_sys::JS_NewRuntime() };
+    let raw_runtime = unsafe { sys::JS_NewRuntime() };
     Self { raw_runtime }
   }
 }
@@ -24,20 +24,15 @@ impl JsRuntime {
   // TODO: see rusty_v8, and write the bindings manually
   pub unsafe fn set_host_promise_rejection_tracker(
     &self,
-    tracker: libquickjs_sys::JSHostPromiseRejectionTracker,
+    tracker: sys::JSHostPromiseRejectionTracker,
     opaque: *mut c_void,
   ) {
-    libquickjs_sys::JS_SetHostPromiseRejectionTracker(
-      self.raw_runtime,
-      tracker,
-      opaque,
-    )
+    sys::JS_SetHostPromiseRejectionTracker(self.raw_runtime, tracker, opaque)
   }
 
   pub fn execute_pending_job(&self) -> Result<bool, Error> {
     let pctx = &mut ptr::null_mut();
-    let res =
-      unsafe { libquickjs_sys::JS_ExecutePendingJob(self.raw_runtime, pctx) };
+    let res = unsafe { sys::JS_ExecutePendingJob(self.raw_runtime, pctx) };
     match res {
       0 => Ok(false),
       1 => Ok(true),
@@ -47,6 +42,6 @@ impl JsRuntime {
   }
 
   pub fn free(&mut self) {
-    unsafe { libquickjs_sys::JS_FreeRuntime(self.raw_runtime) };
+    unsafe { sys::JS_FreeRuntime(self.raw_runtime) };
   }
 }

@@ -68,11 +68,11 @@ pub fn js_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
   let expanded = quote! {
     #visibility extern "C" fn #fn_name(
-      ctx: *mut libquickjs_sys::JSContext,
-      this_val: libquickjs_sys::JSValue,
+      ctx: *mut rusty_qjs::sys::JSContext,
+      this_val: rusty_qjs::sys::JSValue,
       argc: i32,
-      argv: *mut libquickjs_sys::JSValue,
-    ) -> libquickjs_sys::JSValue {
+      argv: *mut rusty_qjs::sys::JSValue,
+    ) -> rusty_qjs::sys::JSValue {
       use std::ptr;
       use std::panic::{self, AssertUnwindSafe};
 

@@ -1,18 +1,20 @@
-use crate::{context::JsContext, error::Error, handle::Local, value::JsValue};
+use crate::{
+  context::JsContext, error::Error, handle::Local, sys, value::JsValue,
+};
 
 pub struct CallContext<'ctx> {
   pub js_context: &'ctx mut JsContext,
-  raw_this: libquickjs_sys::JSValue,
+  raw_this: sys::JSValue,
   pub argc: i32,
-  argv: *mut libquickjs_sys::JSValue,
+  argv: *mut sys::JSValue,
 }
 
 impl<'ctx> CallContext<'ctx> {
   pub fn new(
     js_context: &'ctx mut JsContext,
-    raw_this: libquickjs_sys::JSValue,
+    raw_this: sys::JSValue,
     argc: i32,
-    argv: *mut libquickjs_sys::JSValue,
+    argv: *mut sys::JSValue,
   ) -> Self {
     Self {
       js_context,

@@ -4,14 +4,14 @@ mod ext;
 mod module;
 mod run;
 
-use clap::Clap;
+use clap::Parser;
 use error::AnyError;
 use futures::FutureExt;
 use run::run;
 use std::{future::Future, path::PathBuf, pin::Pin, process};
 use tokio::{runtime, task};
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 #[clap(name = "qtok")]
 #[clap(author, about, version)]
 enum Opts {
