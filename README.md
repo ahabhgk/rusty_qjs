@@ -1,6 +1,6 @@
 # (WIP) rusty_qjs
 
-Safe abstraction for libquickjs_sys.
+Safe abstraction for quickjs.
 
 ## TODO
 
