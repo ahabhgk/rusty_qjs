@@ -1,2 +1,15 @@
-[workspace]
-members = ["cli", "libquickjs-sys", "rusty_qjs", "rusty_qjs_derive"]
+[package]
+name = "rusty_qjs"
+version = "0.1.0"
+edition = "2021"
+authors = ["ahabhgk <ahabhgk@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/ahabhgk/qtok.js"
+description = "Safe abstraction for libquickjs_sys"
+
+[dependencies]
+libquickjs-sys = { path="libquickjs-sys" }
+thiserror = "1.0.30"
+
+[build-dependencies]
+cc = { version = "1.0", features = ["parallel"] }

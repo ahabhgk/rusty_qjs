@@ -41,7 +41,7 @@ impl fmt::Debug for JsValue {
       libquickjs_sys::JS_TAG_CATCH_OFFSET => "CatchOffset",
       libquickjs_sys::JS_TAG_EXCEPTION => "Exception",
       libquickjs_sys::JS_TAG_FLOAT64 => "Float64",
-      _ => panic!("Unknown tag"),
+      _ => "Unknown (unexpected)",
     };
     write!(
       f,
