@@ -1,0 +1,140 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  fmt:
+    name: Rust fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+          profile: minimal
+          override: true
+      - name: Run rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    name: Rust clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+          profile: minimal
+          override: true
+      - name: Run clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-targets -- -D warnings
+
+  audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install rust
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Audit check
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  test:
+    name: ${{ matrix.os }} ${{ matrix.profile }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            profile: debug
+          - os: ubuntu-latest
+            profile: release
+          - os: macos-latest
+            profile: debug
+          - os: macos-latest
+            profile: release
+    steps:
+      # Clone
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      # Setup
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      # Test rusty_qjs
+      - name: Test rusty_qjs debug
+        uses: actions-rs/cargo@v1
+        if: matrix.profile == 'debug'
+        with:
+          command: test
+          args: --locked
+        env:
+          RUST_BACKTRACE: 1
+      - name: Test rusty_qjs release
+        uses: actions-rs/cargo@v1
+        if: matrix.profile == 'release'
+        with:
+          command: test
+          args: --release --locked
+
+      # Test rusty_qjs_derive
+      - name: Test rusty_qjs_derive debug
+        uses: actions-rs/cargo@v1
+        if: matrix.profile == 'debug'
+        with:
+          command: test
+          args: --locked --manifest-path=derive/Cargo.toml
+        env:
+          RUST_BACKTRACE: 1
+      - name: Test rusty_qjs_derive release
+        uses: actions-rs/cargo@v1
+        if: matrix.profile == 'release'
+        with:
+          command: test
+          args: --release --locked --manifest-path=derive/Cargo.toml
+
+      # Test qtok
+      - name: Test qtok debug
+        uses: actions-rs/cargo@v1
+        if: matrix.profile == 'debug'
+        with:
+          command: test
+          args: --locked --manifest-path=qtok/Cargo.toml
+        env:
+          RUST_BACKTRACE: 1
+      - name: Test qtok release
+        uses: actions-rs/cargo@v1
+        if: matrix.profile == 'release'
+        with:
+          command: test
+          args: --release --locked --manifest-path=qtok/Cargo.toml

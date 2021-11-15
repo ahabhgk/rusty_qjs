@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["ahabhgk <ahabhgk@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/ahabhgk/rusty_qjs"
-description = "A Toy JavaScript runtime built with rusty_qjs, tokio and ❤️"
+description = "Toy JavaScript runtime built with rusty_qjs and tokio"
 
 [[bin]]
 name = "qtok"

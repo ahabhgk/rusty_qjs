@@ -1,6 +1,6 @@
 # (WIP) rusty_qjs
 
-Safe abstraction for quickjs.
+Rust bindings to QuickJS.
 
 ## TODO
 

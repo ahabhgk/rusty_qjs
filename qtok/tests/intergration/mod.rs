@@ -162,7 +162,6 @@ fn target_dir() -> PathBuf {
 }
 
 fn qtok_exe_path() -> PathBuf {
-  // Something like /Users/ahabhgk/qtok/target/debug/deps/qtok
   let mut p = target_dir().join("qtok");
   if cfg!(windows) {
     p.set_extension("exe");
@@ -178,11 +177,59 @@ fn root_path() -> PathBuf {
 }
 
 fn tests_path() -> PathBuf {
-  root_path().join("cli").join("tests")
+  root_path().join("qtok").join("tests")
 }
 
 fn testdata_path() -> PathBuf {
   tests_path().join("testdata")
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_wildcard_match() {
+    let fixtures = vec![
+      ("foobarbaz", "foobarbaz", true),
+      ("[WILDCARD]", "foobarbaz", true),
+      ("foobar", "foobarbaz", false),
+      ("foo[WILDCARD]baz", "foobarbaz", true),
+      ("foo[WILDCARD]baz", "foobazbar", false),
+      ("foo[WILDCARD]baz[WILDCARD]qux", "foobarbazqatqux", true),
+      ("foo[WILDCARD]", "foobar", true),
+      ("foo[WILDCARD]baz[WILDCARD]", "foobarbazqat", true),
+      // check with different line endings
+      ("foo[WILDCARD]\nbaz[WILDCARD]\n", "foobar\nbazqat\n", true),
+      (
+        "foo[WILDCARD]\nbaz[WILDCARD]\n",
+        "foobar\r\nbazqat\r\n",
+        true,
+      ),
+      (
+        "foo[WILDCARD]\r\nbaz[WILDCARD]\n",
+        "foobar\nbazqat\r\n",
+        true,
+      ),
+      (
+        "foo[WILDCARD]\r\nbaz[WILDCARD]\r\n",
+        "foobar\nbazqat\n",
+        true,
+      ),
+      (
+        "foo[WILDCARD]\r\nbaz[WILDCARD]\r\n",
+        "foobar\r\nbazqat\r\n",
+        true,
+      ),
+    ];
+
+    // Iterate through the fixture lists, testing each one
+    for (pattern, string, expected) in fixtures {
+      let actual = wildcard_match(pattern, string);
+      dbg!(pattern, string, expected);
+      assert_eq!(actual, expected);
+    }
+  }
 }
 
 mod run_tests;
