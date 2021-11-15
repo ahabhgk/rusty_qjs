@@ -1,5 +1,5 @@
 use crate::error::AnyError;
-use rusty_qjs::{context::JsContext, value::JsValue};
+use rusty_qjs::{JsContext, JsValue};
 
 pub fn js_module_set_import_meta(
   _ctx: &JsContext,

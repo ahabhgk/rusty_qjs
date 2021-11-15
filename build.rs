@@ -1,7 +1,7 @@
 use std::fs;
 
 fn main() {
-  println!("cargo:rerun-if-changed=src/helper.c");
+  println!("cargo:rerun-if-changed=src/support.c");
   build_quickjs();
 }
 
@@ -21,7 +21,7 @@ fn build_quickjs() {
     .file("quickjs/libunicode.c")
     .file("quickjs/quickjs.c")
     // static functions and helper functions
-    .file("src/helper.c");
+    .file("src/support.c");
 
   config
     .define("_GNU_SOURCE", None)

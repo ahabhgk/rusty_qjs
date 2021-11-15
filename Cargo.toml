@@ -8,6 +8,7 @@ repository = "https://github.com/ahabhgk/rusty_qjs"
 description = "Rust bindings to QuickJS"
 
 [dependencies]
+libc = "0.2.107"
 thiserror = "1.0.30"
 
 [build-dependencies]

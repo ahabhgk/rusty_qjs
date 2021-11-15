@@ -1,14 +1,7 @@
 use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
-use rusty_qjs::{
-  context::JsContext,
-  error::Error,
-  handle::{Local, QuickjsRc},
-  runtime::JsRuntime,
-  sys,
-  value::JsValue,
-};
+use rusty_qjs::{sys, Error, JsContext, JsRuntime, JsValue, Local, QuickjsRc};
 
 use crate::{error::AnyError, ext, module::js_module_set_import_meta};
 
@@ -22,7 +15,7 @@ extern "C" fn host_promise_rejection_tracker(
   if is_handled == 0 {
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
     unsafe { sys::JS_DupValue(ctx, reason) };
-    let reason = Local::new(JsValue::from_raw(ctx, reason));
+    let reason = Local::from(JsValue::from_raw(ctx, reason));
     qtok.pending_promise_exceptions.push(Error::from(reason))
   }
 }
