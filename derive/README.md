@@ -1,3 +1,3 @@
 # rusty_qjs_derive
 
-rusty_qjs procedural macros
+rusty_qjs procedural macros.

@@ -178,7 +178,7 @@ fn root_path() -> PathBuf {
 }
 
 fn tests_path() -> PathBuf {
-  root_path().join("cli").join("tests")
+  root_path().join("qtok").join("tests")
 }
 
 fn testdata_path() -> PathBuf {
