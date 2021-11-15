@@ -73,7 +73,7 @@ jobs:
           - os: macos-latest
             profile: release
           - os: windows-latest
-            profile: debug
+            profile: release
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -105,6 +105,8 @@ jobs:
         with:
           command: test
           args: --locked
+        env:
+          RUST_BACKTRACE: 1
       - name: Test rusty_qjs release
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'release'
@@ -118,6 +120,8 @@ jobs:
         with:
           command: test
           args: --locked --manifest-path=derive/Cargo.toml
+        env:
+          RUST_BACKTRACE: 1
       - name: Test rusty_qjs_derive release
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'release'
@@ -131,6 +135,8 @@ jobs:
         with:
           command: test
           args: --locked --manifest-path=qtok/Cargo.toml
+        env:
+          RUST_BACKTRACE: 1
       - name: Test qtok release
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'release'
