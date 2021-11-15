@@ -21,13 +21,17 @@ impl Default for JsRuntime {
 // }
 
 impl JsRuntime {
-  // TODO: see rusty_v8, and write the bindings manually
+  /// Set callback to handle host promise rejection
+  ///
+  /// # Safety
+  ///
+  /// TODO
   pub unsafe fn set_host_promise_rejection_tracker(
     &self,
     tracker: sys::JSHostPromiseRejectionTracker,
     opaque: *mut c_void,
   ) {
-    sys::JS_SetHostPromiseRejectionTracker(self.raw_runtime, tracker, opaque)
+    sys::JS_SetHostPromiseRejectionTracker(self.raw_runtime, tracker, opaque);
   }
 
   pub fn execute_pending_job(&self) -> Result<bool, Error> {

@@ -85,19 +85,6 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
-      # Build rusty_qjs
-      - name: Build rusty_qjs debug
-        uses: actions-rs/cargo@v1
-        if: matrix.profile == 'debug'
-        with:
-          command: build
-          args: --locked --all-targets
-      - name: Build rusty_qjs release
-        uses: actions-rs/cargo@v1
-        if: matrix.profile == 'release'
-        with:
-          command: build
-          args: --release --locked --all-targets
       # Test rusty_qjs
       - name: Test rusty_qjs debug
         uses: actions-rs/cargo@v1
