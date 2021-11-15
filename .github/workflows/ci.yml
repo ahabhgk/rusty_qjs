@@ -1,6 +1,10 @@
 name: ci
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   fmt:
@@ -75,16 +79,29 @@ jobs:
           - os: windows-latest
             profile: release
     steps:
+      # Clone
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
           submodules: recursive
-      - name: Install rust
+
+      # Setup
+      - name: Install toolchain
         uses: actions-rs/toolchain@v1
+        if: matrix.os != 'windows-latest'
         with:
           toolchain: stable
           profile: minimal
           override: true
+      - name: Install toolchain (windows)
+        uses: actions-rs/toolchain@v1
+        if: matrix.os == 'windows-latest'
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: x86_64-pc-windows-gnu
+
       # Test rusty_qjs
       - name: Test rusty_qjs debug
         uses: actions-rs/cargo@v1
@@ -100,6 +117,7 @@ jobs:
         with:
           command: test
           args: --release --locked
+
       # Test rusty_qjs_derive
       - name: Test rusty_qjs_derive debug
         uses: actions-rs/cargo@v1
@@ -115,6 +133,7 @@ jobs:
         with:
           command: test
           args: --release --locked --manifest-path=derive/Cargo.toml
+
       # Test qtok
       - name: Test qtok debug
         uses: actions-rs/cargo@v1
