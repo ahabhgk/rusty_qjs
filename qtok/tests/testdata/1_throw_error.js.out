@@ -1,4 +1,4 @@
 [exception] Error: ee
-    at main (/Users/ahabhgk/codes/web/rusty_qjs/qtok/tests/testdata/1_throw_error.js:2)
-    at <anonymous> (/Users/ahabhgk/codes/web/rusty_qjs/qtok/tests/testdata/1_throw_error.js:5)
+    at main ([WILDCARD]/tests/testdata/1_throw_error.js:2)
+    at <anonymous> ([WILDCARD]/tests/testdata/1_throw_error.js:5)
 
