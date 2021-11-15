@@ -76,8 +76,6 @@ jobs:
             profile: debug
           - os: macos-latest
             profile: release
-          - os: windows-latest
-            profile: release
     steps:
       # Clone
       - name: Checkout sources
@@ -88,19 +86,10 @@ jobs:
       # Setup
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
-        if: matrix.os != 'windows-latest'
         with:
           toolchain: stable
           profile: minimal
           override: true
-      - name: Install toolchain (windows)
-        uses: actions-rs/toolchain@v1
-        if: matrix.os == 'windows-latest'
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-          target: x86_64-pc-windows-gnu
 
       # Test rusty_qjs
       - name: Test rusty_qjs debug
