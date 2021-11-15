@@ -62,8 +62,8 @@ impl<'ctx, T: QuickjsRc> Local<'ctx, T> {
     *b
   }
 
-  pub fn dup(&mut self, ctx: &'ctx mut JSContext) -> Self {
-    let rc = unsafe { self.value.as_ref() }.dup(self.context);
+  pub fn dup(&self, ctx: &'ctx mut JSContext) -> Self {
+    let rc = unsafe { self.value.as_ref() }.dup(ctx);
     Self::new(ctx, rc)
   }
 }
