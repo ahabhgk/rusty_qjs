@@ -97,43 +97,43 @@ jobs:
         if: matrix.profile == 'release'
         with:
           command: build
-          args: --locked --all-targets
+          args: --release --locked --all-targets
       # Test rusty_qjs
       - name: Test rusty_qjs debug
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'debug'
         with:
           command: test
-          args: --locked --debug
+          args: --locked
       - name: Test rusty_qjs release
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'release'
         with:
           command: test
-          args: --locked --release
+          args: --release --locked
       # Test rusty_qjs_derive
       - name: Test rusty_qjs_derive debug
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'debug'
         with:
           command: test
-          args: --locked --debug --manifest-path=derive/Cargo.toml
+          args: --locked --manifest-path=derive/Cargo.toml
       - name: Test rusty_qjs_derive release
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'release'
         with:
           command: test
-          args: --locked --release --manifest-path=derive/Cargo.toml
+          args: --release --locked --manifest-path=derive/Cargo.toml
       # Test qtok
       - name: Test qtok debug
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'debug'
         with:
           command: test
-          args: --locked --debug --manifest-path=qtok/Cargo.toml
+          args: --locked --manifest-path=qtok/Cargo.toml
       - name: Test qtok release
         uses: actions-rs/cargo@v1
         if: matrix.profile == 'release'
         with:
           command: test
-          args: --locked --release --manifest-path=qtok/Cargo.toml
+          args: --release --locked --manifest-path=qtok/Cargo.toml
