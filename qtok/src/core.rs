@@ -2,8 +2,7 @@ use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
 use rusty_qjs::{
-  Error, JSContext, JSRuntime, JSValue, OwnedJSContext, OwnedJSRuntime,
-  QuickjsRc,
+  Error, JSContext, JSRuntime, JSValue, OwnedJSContext, QuickjsRc,
 };
 
 use crate::{error::AnyError, ext};
@@ -25,28 +24,25 @@ extern "C" fn host_promise_rejection_tracker(
   }
 }
 
-pub struct Qtok {
-  js_context: OwnedJSContext,
-  js_runtime: OwnedJSRuntime,
+pub struct Qtok<'rt> {
+  js_context: OwnedJSContext<'rt>,
   pending_promise_exceptions: Vec<Error>,
   // pending_ops:
 }
 
 // TODO: drop should called by js_context and js_runtime, hack for now
-impl Drop for Qtok {
-  fn drop(&mut self) {
-    self.js_context.free();
-    self.js_runtime.free();
-  }
-}
+// impl Drop for Qtok<'_> {
+//   fn drop(&mut self) {
+//     self.js_context.free();
+//     // self.js_runtime.free();
+//   }
+// }
 
-impl Qtok {
-  pub fn new() -> Self {
-    let mut js_runtime = JSRuntime::new();
-    let js_context = JSContext::new(&mut js_runtime);
+impl<'rt> Qtok<'rt> {
+  pub fn new(rt: &'rt mut JSRuntime) -> Self {
+    let js_context = JSContext::new(rt);
     let mut qtok = Self {
       js_context,
-      js_runtime,
       pending_promise_exceptions: Vec::new(),
     };
     // JS_SetMaxStackSize
@@ -54,10 +50,13 @@ impl Qtok {
     // JS_SetHostPromiseRejectionTracker
     let opaque = { &qtok as *const _ as *mut c_void };
     unsafe {
-      qtok.js_runtime.set_host_promise_rejection_tracker(
-        Some(host_promise_rejection_tracker),
-        opaque,
-      )
+      qtok
+        .js_context
+        .get_runtime()
+        .set_host_promise_rejection_tracker(
+          Some(host_promise_rejection_tracker),
+          opaque,
+        )
     };
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
@@ -124,7 +123,8 @@ impl Qtok {
 
   fn perform_microtasks(&mut self) -> Result<(), Error> {
     loop {
-      let has_microtask = self.js_runtime.execute_pending_job()?;
+      let has_microtask =
+        self.js_context.get_runtime().execute_pending_job()?;
       if !has_microtask {
         break;
       }
@@ -141,6 +141,9 @@ impl Qtok {
   }
 
   fn dump_error(&mut self) -> Error {
-    self.js_context.get_exception().to_error(&mut self.js_context)
+    self
+      .js_context
+      .get_exception()
+      .to_error(&mut self.js_context)
   }
 }

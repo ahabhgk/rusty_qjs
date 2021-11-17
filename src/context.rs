@@ -1,5 +1,6 @@
 use std::{
   ffi::CString,
+  marker::PhantomData,
   ops::{Deref, DerefMut},
   ptr::NonNull,
 };
@@ -20,6 +21,7 @@ extern "C" {
   fn JS_EvalFunction(ctx: *mut JSContext, fun_obj: JSValue) -> JSValue;
   fn JS_GetException(ctx: *mut JSContext) -> JSValue;
   fn JS_GetGlobalObject(ctx: *mut JSContext) -> JSValue;
+  fn JS_GetRuntime(ctx: *mut JSContext) -> *mut JSRuntime;
 }
 
 #[repr(C)]
@@ -65,7 +67,7 @@ impl JSContext {
   pub fn new(rt: &mut JSRuntime) -> OwnedJSContext {
     let ctx = unsafe { JS_NewContext(rt) };
     let ctx = NonNull::new(ctx).unwrap();
-    OwnedJSContext(ctx)
+    OwnedJSContext(ctx, PhantomData)
   }
 
   pub fn eval_module(&mut self, code: &str, name: &str) -> JSValue {
@@ -103,6 +105,12 @@ impl JSContext {
     global_object
   }
 
+  pub fn get_runtime(&mut self) -> &mut JSRuntime {
+    let rt = unsafe { JS_GetRuntime(self) };
+    let rt = unsafe { rt.as_mut() }.unwrap();
+    rt
+  }
+
   pub fn dup(&mut self) {
     unsafe { JS_DupContext(self) };
   }
@@ -124,16 +132,15 @@ impl JSContext {
 //   }
 // }
 
-pub struct OwnedJSContext(NonNull<JSContext>);
+pub struct OwnedJSContext<'rt>(NonNull<JSContext>, PhantomData<&'rt JSRuntime>);
 
-// impl Drop for OwnedJSContext {
-//   fn drop(&mut self) {
-//     println!("free ctx");
-//     self.free();
-//   }
-// }
+impl Drop for OwnedJSContext<'_> {
+  fn drop(&mut self) {
+    self.free();
+  }
+}
 
-impl Deref for OwnedJSContext {
+impl Deref for OwnedJSContext<'_> {
   type Target = JSContext;
 
   fn deref(&self) -> &Self::Target {
@@ -141,7 +148,7 @@ impl Deref for OwnedJSContext {
   }
 }
 
-impl DerefMut for OwnedJSContext {
+impl DerefMut for OwnedJSContext<'_> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     unsafe { self.0.as_mut() }
   }

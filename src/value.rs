@@ -301,7 +301,5 @@ mod tests {
     let mut val = JSValue::new_object(ctx);
     val.free(ctx);
     // val.free(ctx);
-    ctx.free();
-    rt.free();
   }
 }

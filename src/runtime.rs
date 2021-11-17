@@ -76,12 +76,11 @@ impl JSRuntime {
 
 pub struct OwnedJSRuntime(NonNull<JSRuntime>);
 
-// impl Drop for OwnedJSRuntime {
-//   fn drop(&mut self) {
-//     println!("free runtime");
-//     self.free();
-//   }
-// }
+impl Drop for OwnedJSRuntime {
+  fn drop(&mut self) {
+    self.free();
+  }
+}
 
 impl Deref for OwnedJSRuntime {
   type Target = JSRuntime;

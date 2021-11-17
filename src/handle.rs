@@ -1,5 +1,7 @@
 use std::{
-  fmt, mem,
+  fmt,
+  marker::PhantomData,
+  mem,
   ops::{Deref, DerefMut},
   ptr::NonNull,
 };
@@ -12,19 +14,22 @@ pub trait QuickjsRc {
   fn dup(&self, ctx: &mut JSContext) -> Self;
 }
 
-pub struct Local<T: QuickjsRc> {
+pub struct Local<'ctx, T: QuickjsRc> {
   value: NonNull<T>,
-  pub context: *mut JSContext,
+  context: NonNull<JSContext>,
+  // JSContext outlives Local, the compiler needs to check the lifetime,
+  // but don't need to know that Local has the &mut JSContext.
+  _marker: PhantomData<&'ctx ()>,
 }
 
-impl<T: QuickjsRc> Drop for Local<T> {
+impl<T: QuickjsRc> Drop for Local<'_, T> {
   fn drop(&mut self) {
-    let ctx = unsafe { self.context.as_mut() }.unwrap();
+    let ctx = unsafe { self.context.as_mut() };
     unsafe { self.value.as_mut() }.free(ctx);
   }
 }
 
-impl<T: QuickjsRc> Deref for Local<T> {
+impl<T: QuickjsRc> Deref for Local<'_, T> {
   type Target = T;
 
   fn deref(&self) -> &Self::Target {
@@ -32,27 +37,28 @@ impl<T: QuickjsRc> Deref for Local<T> {
   }
 }
 
-impl<T: QuickjsRc> DerefMut for Local<T> {
+impl<T: QuickjsRc> DerefMut for Local<'_, T> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     unsafe { self.value.as_mut() }
   }
 }
 
-impl<T: QuickjsRc + fmt::Debug> fmt::Debug for Local<T> {
+impl<T: QuickjsRc + fmt::Debug> fmt::Debug for Local<'_, T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     fmt::Debug::fmt(&**self, f)
   }
 }
 
-impl<T: QuickjsRc> Local<T> {
+impl<'ctx, T: QuickjsRc> Local<'ctx, T> {
   pub fn from_qjsrc(ctx: &mut JSContext, rc: T) -> Self {
     // this way to get *mut T, 'as' has potential unsafety
     let ptr = Box::into_raw(Box::new(rc));
     let value = NonNull::new(ptr).unwrap();
+    let ctx = NonNull::new(ctx).unwrap();
     Self {
       value,
       context: ctx,
-      // context: PhantomData,
+      _marker: PhantomData,
     }
   }
 
