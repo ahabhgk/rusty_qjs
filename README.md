@@ -14,3 +14,5 @@ Rust bindings to QuickJS.
   - [ ] sys
   - [ ] safe fn with Reference type, QuickjsRc trait
   - [ ] OOP with Local type
+- [ ] use repr(C) type directly
+  - [ ] difference between JSValue::dup and Clone::clone(JSValue)

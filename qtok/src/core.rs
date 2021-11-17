@@ -1,28 +1,33 @@
 use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
-use rusty_qjs::{sys, Error, JsContext, JsRuntime, JsValue, Local, QuickjsRc};
+use rusty_qjs::{
+  Error, JSContext, JSRuntime, JSValue, OwnedJSContext, OwnedJSRuntime,
+  QuickjsRc,
+};
 
-use crate::{error::AnyError, ext, module::js_module_set_import_meta};
+use crate::{error::AnyError, ext};
 
 extern "C" fn host_promise_rejection_tracker(
-  ctx: *mut sys::JSContext,
-  _promise: sys::JSValue,
-  reason: sys::JSValue,
+  ctx: *mut JSContext,
+  _promise: JSValue,
+  reason: JSValue,
   is_handled: ::std::os::raw::c_int,
   opaque: *mut ::std::os::raw::c_void,
 ) {
   if is_handled == 0 {
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
-    unsafe { sys::JS_DupValue(ctx, reason) };
-    let reason = Local::from(JsValue::from_raw(ctx, reason));
-    qtok.pending_promise_exceptions.push(Error::from(reason))
+    let ctx = unsafe { ctx.as_mut() }.unwrap();
+    reason.dup(ctx);
+    // let reason = Local::from_qjsrc(ctx, reason);
+    // qtok.pending_promise_exceptions.push(Error::from(reason))
+    qtok.pending_promise_exceptions.push(reason.to_error(ctx))
   }
 }
 
 pub struct Qtok {
-  js_context: JsContext,
-  js_runtime: JsRuntime,
+  js_context: OwnedJSContext,
+  js_runtime: OwnedJSRuntime,
   pending_promise_exceptions: Vec<Error>,
   // pending_ops:
 }
@@ -37,9 +42,9 @@ impl Drop for Qtok {
 
 impl Qtok {
   pub fn new() -> Self {
-    let js_runtime = JsRuntime::default();
-    let js_context = JsContext::new(&js_runtime);
-    let qtok = Self {
+    let mut js_runtime = JSRuntime::new();
+    let js_context = JSContext::new(&mut js_runtime);
+    let mut qtok = Self {
       js_context,
       js_runtime,
       pending_promise_exceptions: Vec::new(),
@@ -57,13 +62,13 @@ impl Qtok {
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
     // tjs__add_builtins path, uuid, hashlib...
-    ext::console::add_console(&qtok.js_context).unwrap();
+    ext::console::add_console(&mut *qtok.js_context).unwrap();
 
     qtok
   }
 
   pub fn eval_module(
-    &self,
+    &mut self,
     path: &Path,
     is_main: bool,
   ) -> Result<(), AnyError> {
@@ -72,24 +77,23 @@ impl Qtok {
   }
 
   fn eval_file(
-    &self,
+    &mut self,
     path: &Path,
     is_main: bool,
-  ) -> Result<Local<JsValue>, AnyError> {
+  ) -> Result<JSValue, AnyError> {
     let code = fs::read_to_string(path)?;
     let code = &code[..];
     let name = path.to_str().unwrap();
-    let ctx = &self.js_context;
 
-    let ret = ctx.compile_module(code, name);
+    let ret = self.js_context.compile_module(code, name);
     if ret.is_exception() {
       return Err(self.dump_error().into());
     }
 
-    js_module_set_import_meta(ctx, &ret, true, is_main)?;
+    // js_module_set_import_meta(ctx, &ret, true, is_main)?;
 
     // TODO: eval module, continue abstract eval?
-    let ret = ctx.eval_function(&ret);
+    let ret = self.js_context.eval_function(ret);
     if ret.is_exception() {
       return Err(self.dump_error().into());
     }
@@ -97,7 +101,19 @@ impl Qtok {
     Ok(ret)
   }
 
-  pub async fn run_event_loop(&self) -> Result<(), Error> {
+  fn compile_module(
+    &mut self,
+    code: &str,
+    name: &str,
+  ) -> Result<JSValue, Error> {
+    let ret = self.js_context.compile_module(code, name);
+    if ret.is_exception() {
+      return Err(self.dump_error().into());
+    }
+    Ok(ret)
+  }
+
+  pub async fn run_event_loop(&mut self) -> Result<(), Error> {
     poll_fn(|_cx| {
       self.perform_microtasks()?;
       self.check_promise_exceptions()?;
@@ -106,7 +122,7 @@ impl Qtok {
     .await
   }
 
-  fn perform_microtasks(&self) -> Result<(), Error> {
+  fn perform_microtasks(&mut self) -> Result<(), Error> {
     loop {
       let has_microtask = self.js_runtime.execute_pending_job()?;
       if !has_microtask {
@@ -124,7 +140,7 @@ impl Qtok {
     Ok(())
   }
 
-  fn dump_error(&self) -> Error {
-    self.js_context.get_exception().into()
+  fn dump_error(&mut self) -> Error {
+    self.js_context.get_exception().to_error(&mut self.js_context)
   }
 }

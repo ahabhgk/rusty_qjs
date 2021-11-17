@@ -2,6 +2,7 @@ use std::fs;
 
 fn main() {
   println!("cargo:rerun-if-changed=src/support.c");
+  println!("cargo:rerun-if-changed=quickjs/");
   build_quickjs();
 }
 

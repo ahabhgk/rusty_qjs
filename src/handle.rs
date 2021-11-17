@@ -4,7 +4,7 @@ use std::{
   ptr::NonNull,
 };
 
-use crate::context::JSContext;
+use crate::JSContext;
 
 pub trait QuickjsRc {
   fn free(&mut self, ctx: &mut JSContext);
@@ -12,18 +12,19 @@ pub trait QuickjsRc {
   fn dup(&self, ctx: &mut JSContext) -> Self;
 }
 
-pub struct Local<'ctx, T: QuickjsRc> {
+pub struct Local<T: QuickjsRc> {
   value: NonNull<T>,
-  context: &'ctx mut JSContext,
+  pub context: *mut JSContext,
 }
 
-impl<T: QuickjsRc> Drop for Local<'_, T> {
+impl<T: QuickjsRc> Drop for Local<T> {
   fn drop(&mut self) {
-    unsafe { self.value.as_mut() }.free(self.context);
+    let ctx = unsafe { self.context.as_mut() }.unwrap();
+    unsafe { self.value.as_mut() }.free(ctx);
   }
 }
 
-impl<T: QuickjsRc> Deref for Local<'_, T> {
+impl<T: QuickjsRc> Deref for Local<T> {
   type Target = T;
 
   fn deref(&self) -> &Self::Target {
@@ -31,26 +32,27 @@ impl<T: QuickjsRc> Deref for Local<'_, T> {
   }
 }
 
-impl<T: QuickjsRc> DerefMut for Local<'_, T> {
+impl<T: QuickjsRc> DerefMut for Local<T> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     unsafe { self.value.as_mut() }
   }
 }
 
-impl<T: QuickjsRc + fmt::Debug> fmt::Debug for Local<'_, T> {
+impl<T: QuickjsRc + fmt::Debug> fmt::Debug for Local<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     fmt::Debug::fmt(&**self, f)
   }
 }
 
-impl<'ctx, T: QuickjsRc> Local<'ctx, T> {
-  pub fn new(ctx: &'ctx mut JSContext, rc: T) -> Self {
+impl<T: QuickjsRc> Local<T> {
+  pub fn from_qjsrc(ctx: &mut JSContext, rc: T) -> Self {
     // this way to get *mut T, 'as' has potential unsafety
     let ptr = Box::into_raw(Box::new(rc));
     let value = NonNull::new(ptr).unwrap();
     Self {
       value,
       context: ctx,
+      // context: PhantomData,
     }
   }
 
@@ -60,11 +62,6 @@ impl<'ctx, T: QuickjsRc> Local<'ctx, T> {
     // Safety: the NonNull pointer is created by `Box::into_raw` in `Local::from`
     let b = unsafe { Box::from_raw(nn.as_ptr()) };
     *b
-  }
-
-  pub fn dup(&self, ctx: &'ctx mut JSContext) -> Self {
-    let rc = unsafe { self.value.as_ref() }.dup(ctx);
-    Self::new(ctx, rc)
   }
 }
 

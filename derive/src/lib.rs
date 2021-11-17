@@ -68,24 +68,24 @@ pub fn js_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
   let expanded = quote! {
     #visibility extern "C" fn #fn_name(
-      ctx: *mut rusty_qjs::sys::JSContext,
-      this_val: rusty_qjs::sys::JSValue,
+      ctx: *mut rusty_qjs::JSContext,
+      this_val: rusty_qjs::JSValue,
       argc: i32,
-      argv: *mut rusty_qjs::sys::JSValue,
-    ) -> rusty_qjs::sys::JSValue {
+      argv: *mut rusty_qjs::JSValue,
+    ) -> rusty_qjs::JSValue {
       use std::ptr;
       use std::panic::{self, AssertUnwindSafe};
 
-      let mut ctx = JsContext::from_raw(ctx);
-      let mut call_ctx = CallContext::new(&mut ctx, this_val, argc, argv);
+      let mut ctx = unsafe { ctx.as_mut() }.unwrap();
+      let mut call_ctx = rusty_qjs::CallContext::new(&mut ctx, this_val, argc, argv);
 
       #[inline(always)]
       #signature #(#fn_block)*
 
       // TODO: catch_unwind
       let ret = #new_fn_name(call_ctx);
-      let ret = ret.to_qjsrc();
-      ret.raw_value
+      // let ret = ret.to_qjsrc();
+      ret
     }
   };
   expanded.into()
