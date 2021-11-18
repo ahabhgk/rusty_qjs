@@ -29,6 +29,7 @@ extern "C" {
 pub struct JSContext(Opaque);
 
 impl JSContext {
+  #[allow(clippy::identity_op)]
   const JS_EVAL_TYPE_GLOBAL: i32 = (0 << 0);
   const JS_EVAL_TYPE_MODULE: i32 = (1 << 0);
   const JS_EVAL_FLAG_COMPILE_ONLY: i32 = (1 << 5);
@@ -56,13 +57,12 @@ impl JSContext {
     let name_cstring = CString::new(name).unwrap();
     let filename = name_cstring.as_ptr();
 
-    let evaled =
-      unsafe { JS_Eval(self, input, input_len, filename, eval_flags) };
-    evaled
+    unsafe { JS_Eval(self, input, input_len, filename, eval_flags) }
   }
 }
 
 impl JSContext {
+  #[allow(clippy::new_ret_no_self)]
   pub fn new(rt: &mut JSRuntime) -> OwnedJSContext {
     let ctx = unsafe { JS_NewContext(rt) };
     let ctx = NonNull::new(ctx).unwrap();
@@ -86,18 +86,15 @@ impl JSContext {
   }
 
   pub fn eval_function(&mut self, fun_obj: JSValue) -> JSValue {
-    let result = unsafe { JS_EvalFunction(self, fun_obj) };
-    result
+    unsafe { JS_EvalFunction(self, fun_obj) }
   }
 
   pub fn get_exception(&mut self) -> JSValue {
-    let exception = unsafe { JS_GetException(self) };
-    exception
+    unsafe { JS_GetException(self) }
   }
 
   pub fn get_global_object(&mut self) -> JSValue {
-    let global_object = unsafe { JS_GetGlobalObject(self) };
-    global_object
+    unsafe { JS_GetGlobalObject(self) }
   }
 
   pub fn get_runtime(&mut self) -> &mut JSRuntime {

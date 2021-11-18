@@ -34,6 +34,7 @@ pub type JSHostPromiseRejectionTracker = ::std::option::Option<
 pub struct JSRuntime(Opaque);
 
 impl JSRuntime {
+  #[allow(clippy::new_ret_no_self)]
   pub fn new() -> OwnedJSRuntime {
     let rt = unsafe { JS_NewRuntime() };
     let rt = NonNull::new(rt).unwrap();

@@ -140,8 +140,7 @@ impl QuickjsRc for JSValue {
 
 impl JSValue {
   pub fn new_object(ctx: &mut JSContext) -> Self {
-    let rc = unsafe { JS_NewObject(ctx) };
-    rc
+    unsafe { JS_NewObject(ctx) }
   }
 
   pub fn new_function(
@@ -151,23 +150,21 @@ impl JSValue {
     len: i32,
   ) -> Self {
     let name_cstring = CString::new(name).unwrap();
-    let rc = unsafe {
+    unsafe {
       JS_NewCFunction_real(
         ctx,
         std::mem::transmute(func as *mut ()),
         name_cstring.as_ptr(),
         len,
       )
-    };
-    rc
+    }
   }
 
   pub fn new_undefined() -> Self {
-    let rc = Self {
+    Self {
       u: JSValueUnion { int32: 0 },
       tag: Self::JS_TAG_UNDEFINED.into(),
-    };
-    rc
+    }
   }
 
   pub fn to_string_with_len(&self, ctx: &mut JSContext, len: usize) -> String {
@@ -204,8 +201,7 @@ impl JSValue {
     prop: &str,
   ) -> Self {
     let prop_cstring = CString::new(prop).unwrap();
-    let rc = unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) };
-    rc
+    unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) }
   }
 
   pub fn set_property_str<'ctx>(
