@@ -423,6 +423,7 @@ dependencies = [
  "os_pipe",
  "rusty_qjs",
  "rusty_qjs_derive",
+ "thiserror",
  "tokio",
 ]
 
@@ -449,6 +450,7 @@ name = "rusty_qjs"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "libc",
  "thiserror",
 ]
 

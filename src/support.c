@@ -101,6 +101,14 @@ int JS_ToUint32_real(JSContext *ctx, uint32_t *pres, JSValueConst val) {
     return JS_ToUint32(ctx, pres, val);
 }
 
+const char *JS_ToCStringLen_real(JSContext *ctx, size_t *plen, JSValueConst val1) {
+    return JS_ToCStringLen(ctx, plen, val1);
+}
+
+const char *JS_ToCString_real(JSContext *ctx, JSValueConst val1) {
+    return JS_ToCString(ctx, val1);
+}
+
 int JS_SetProperty_real(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val) {
     return JS_SetProperty(ctx, this_obj, prop, val);
 }
