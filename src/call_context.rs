@@ -1,4 +1,4 @@
-use crate::{Error, JSContext, JSValue};
+use crate::{error::ArgumentsIndexOutOfRange, JSContext, JSValue};
 
 pub struct CallContext<'ctx> {
   pub js_context: &'ctx mut JSContext,
@@ -22,18 +22,19 @@ impl<'ctx> CallContext<'ctx> {
     }
   }
 
-  pub fn get(&mut self, index: i32) -> Result<JSValue, Error> {
+  pub fn get(
+    &mut self,
+    index: i32,
+  ) -> Result<JSValue, ArgumentsIndexOutOfRange> {
     if index >= self.argc {
-      Err(Error::ArgumentsIndexOutOfRange)
+      Err(ArgumentsIndexOutOfRange)
     } else {
       let arg = unsafe { *self.argv.offset(index as isize) };
-      // Ok(Local::from_qjsrc(self.js_context, arg))
       Ok(arg)
     }
   }
 
   pub fn this(&mut self) -> JSValue {
-    // Local::from_qjsrc(self.js_context, self.raw_this)
     self.raw_this
   }
 }

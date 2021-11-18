@@ -2,10 +2,11 @@ use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
 use rusty_qjs::{
-  Error, JSContext, JSRuntime, JSValue, OwnedJSContext, QuickjsRc,
+  error::JSContextException, JSContext, JSRuntime, JSValue, OwnedJSContext,
+  QuickjsRc,
 };
 
-use crate::{error::AnyError, ext};
+use crate::{error::AnyError, error::JSException, ext};
 
 extern "C" fn host_promise_rejection_tracker(
   ctx: *mut JSContext,
@@ -18,15 +19,14 @@ extern "C" fn host_promise_rejection_tracker(
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
     let ctx = unsafe { ctx.as_mut() }.unwrap();
     reason.dup(ctx);
-    // let reason = Local::from_qjsrc(ctx, reason);
-    // qtok.pending_promise_exceptions.push(Error::from(reason))
-    qtok.pending_promise_exceptions.push(reason.to_error(ctx))
+    let e = JSContextException::new(ctx, reason).into();
+    qtok.pending_promise_exceptions.push(e)
   }
 }
 
 pub struct Qtok<'rt> {
   js_context: OwnedJSContext<'rt>,
-  pending_promise_exceptions: Vec<Error>,
+  pending_promise_exceptions: Vec<JSException>,
   // pending_ops:
 }
 
@@ -78,7 +78,7 @@ impl<'rt> Qtok<'rt> {
   fn eval_file(
     &mut self,
     path: &Path,
-    is_main: bool,
+    _is_main: bool,
   ) -> Result<JSValue, AnyError> {
     let code = fs::read_to_string(path)?;
     let code = &code[..];
@@ -100,19 +100,7 @@ impl<'rt> Qtok<'rt> {
     Ok(ret)
   }
 
-  fn compile_module(
-    &mut self,
-    code: &str,
-    name: &str,
-  ) -> Result<JSValue, Error> {
-    let ret = self.js_context.compile_module(code, name);
-    if ret.is_exception() {
-      return Err(self.dump_error().into());
-    }
-    Ok(ret)
-  }
-
-  pub async fn run_event_loop(&mut self) -> Result<(), Error> {
+  pub async fn run_event_loop(&mut self) -> Result<(), JSException> {
     poll_fn(|_cx| {
       self.perform_microtasks()?;
       self.check_promise_exceptions()?;
@@ -121,7 +109,7 @@ impl<'rt> Qtok<'rt> {
     .await
   }
 
-  fn perform_microtasks(&mut self) -> Result<(), Error> {
+  fn perform_microtasks(&mut self) -> Result<(), JSException> {
     loop {
       let has_microtask =
         self.js_context.get_runtime().execute_pending_job()?;
@@ -133,17 +121,17 @@ impl<'rt> Qtok<'rt> {
     Ok(())
   }
 
-  fn check_promise_exceptions(&self) -> Result<(), Error> {
+  fn check_promise_exceptions(&self) -> Result<(), JSException> {
     if let Some(e) = self.pending_promise_exceptions.first() {
       return Err(e.clone());
     }
     Ok(())
   }
 
-  fn dump_error(&mut self) -> Error {
-    self
-      .js_context
-      .get_exception()
-      .to_error(&mut self.js_context)
+  fn dump_error(&mut self) -> JSException {
+    let mut exception = self.js_context.get_exception();
+    let error = JSContextException::new(&mut self.js_context, exception).into();
+    exception.free(&mut self.js_context);
+    error
   }
 }

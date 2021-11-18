@@ -33,8 +33,8 @@ impl JSContext {
   const JS_EVAL_TYPE_MODULE: i32 = (1 << 0);
   const JS_EVAL_FLAG_COMPILE_ONLY: i32 = (1 << 5);
 
-  fn eval<'ctx>(
-    &'ctx mut self,
+  fn eval(
+    &mut self,
     code: &str,
     name: &str,
     is_module: bool,
@@ -58,7 +58,6 @@ impl JSContext {
 
     let evaled =
       unsafe { JS_Eval(self, input, input_len, filename, eval_flags) };
-    // Local::from_qjsrc(self, evaled)
     evaled
   }
 }
@@ -87,21 +86,17 @@ impl JSContext {
   }
 
   pub fn eval_function(&mut self, fun_obj: JSValue) -> JSValue {
-    // let fun_obj = fun_obj.to_qjsrc();
     let result = unsafe { JS_EvalFunction(self, fun_obj) };
-    // Local::from_qjsrc(self, result)
     result
   }
 
   pub fn get_exception(&mut self) -> JSValue {
     let exception = unsafe { JS_GetException(self) };
-    // Local::from_qjsrc(self, exception)
     exception
   }
 
   pub fn get_global_object(&mut self) -> JSValue {
     let global_object = unsafe { JS_GetGlobalObject(self) };
-    // Local::from_qjsrc(self, global_object)
     global_object
   }
 
@@ -111,26 +106,14 @@ impl JSContext {
     rt
   }
 
-  pub fn dup(&mut self) {
-    unsafe { JS_DupContext(self) };
+  pub fn dup(&mut self) -> *mut Self {
+    unsafe { JS_DupContext(self) }
   }
 
   pub fn free(&mut self) {
     unsafe { JS_FreeContext(self) };
   }
 }
-
-// impl QuickjsRc for JSContext {
-//   fn free(&mut self, ctx: &mut JSContext) {
-//     unsafe { JS_FreeContext(self) };
-//   }
-
-//   fn dup(&self, ctx: &mut JSContext) -> Self {
-//     let ctx = self as *const JSContext as *mut JSContext;
-//     let dup = unsafe { JS_DupContext(ctx) };
-
-//   }
-// }
 
 pub struct OwnedJSContext<'rt>(NonNull<JSContext>, PhantomData<&'rt JSRuntime>);
 

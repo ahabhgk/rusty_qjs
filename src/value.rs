@@ -4,8 +4,9 @@ use std::{
 };
 
 use crate::{
+  error::JSContextException,
   support::{cstr_to_string, jsbool_to_bool},
-  Error, JSContext, QuickjsRc,
+  JSContext, QuickjsRc,
 };
 
 extern "C" {
@@ -127,10 +128,9 @@ impl fmt::Debug for JSValue {
 impl QuickjsRc for JSValue {
   fn free(&mut self, ctx: &mut JSContext) {
     // JS_TAG_MODULE never freed, see quickjs.c#L5518
-    if self.tag == Self::JS_TAG_MODULE.into() {
-      return;
+    if self.tag != Self::JS_TAG_MODULE.into() {
+      unsafe { JS_FreeValue_real(ctx, *self) };
     }
-    unsafe { JS_FreeValue_real(ctx, *self) };
   }
 
   fn dup(&self, ctx: &mut JSContext) -> Self {
@@ -141,12 +141,11 @@ impl QuickjsRc for JSValue {
 impl JSValue {
   pub fn new_object(ctx: &mut JSContext) -> Self {
     let rc = unsafe { JS_NewObject(ctx) };
-    // Local::from_qjsrc(ctx, rc)
     rc
   }
 
-  pub fn new_function<'ctx>(
-    ctx: &'ctx mut JSContext,
+  pub fn new_function(
+    ctx: &mut JSContext,
     func: JSFunction,
     name: &str,
     len: i32,
@@ -160,7 +159,6 @@ impl JSValue {
         len,
       )
     };
-    // Local::from_qjsrc(ctx, rc)
     rc
   }
 
@@ -169,20 +167,19 @@ impl JSValue {
       u: JSValueUnion { int32: 0 },
       tag: Self::JS_TAG_UNDEFINED.into(),
     };
-    // Local::from_qjsrc(ctx, rc)
     rc
   }
 
-  pub fn to_string_with_len(self, ctx: &mut JSContext, len: usize) -> String {
+  pub fn to_string_with_len(&self, ctx: &mut JSContext, len: usize) -> String {
     let len = len as *const usize as *mut usize;
-    let ptr = unsafe { JS_ToCStringLen_real(ctx, len, self) };
+    let ptr = unsafe { JS_ToCStringLen_real(ctx, len, *self) };
     let cstr = unsafe { CStr::from_ptr(ptr) };
     unsafe { JS_FreeCString(ctx, ptr) };
     cstr_to_string(cstr)
   }
 
-  pub fn to_string(self, ctx: &mut JSContext) -> String {
-    let ptr = unsafe { JS_ToCString_real(ctx, self) };
+  pub fn to_string(&self, ctx: &mut JSContext) -> String {
+    let ptr = unsafe { JS_ToCString_real(ctx, *self) };
     let cstr = unsafe { CStr::from_ptr(ptr) };
     unsafe { JS_FreeCString(ctx, ptr) };
     cstr_to_string(cstr)
@@ -208,79 +205,29 @@ impl JSValue {
   ) -> Self {
     let prop_cstring = CString::new(prop).unwrap();
     let rc = unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) };
-    // Local::from_qjsrc(ctx, rc)
     rc
   }
 
-  pub fn set_property_str(
+  pub fn set_property_str<'ctx>(
     &self,
-    ctx: &mut JSContext,
+    ctx: &'ctx mut JSContext,
     prop: &str,
-    value: JSValue,
-  ) -> Result<bool, Error> {
-    // let value = value.to_qjsrc();
+    value: Self,
+  ) -> Result<bool, JSContextException<'ctx>> {
     let prop_cstring = CString::new(prop).unwrap();
     let result =
       unsafe { JS_SetPropertyStr(ctx, *self, prop_cstring.as_ptr(), value) };
     match result {
-      // -1 => Err(ctx.get_exception().into()),
-      -1 => Err(ctx.get_exception().to_error(ctx)),
+      -1 => {
+        let e = ctx.get_exception();
+        Err(JSContextException::new(ctx, e))
+      }
       0 => Ok(false),
       1 => Ok(true),
       _ => panic!("JS_SetPropertyStr return unexpected"),
     }
   }
-
-  pub fn to_error(mut self, ctx: &mut JSContext) -> Error {
-    let (name, message, stack) = if self.is_error(ctx) {
-      let name = self.get_property_str(ctx, "name").to_string(ctx);
-      let message = self.get_property_str(ctx, "message").to_string(ctx);
-      let stack = self.get_property_str(ctx, "stack").to_string(ctx);
-
-      self.free(ctx);
-
-      (name, message, stack)
-    } else {
-      let message = self.to_string(ctx);
-      ("Exception".to_owned(), message, "".to_owned())
-    };
-
-    Error::JSContextError {
-      name,
-      stack,
-      message,
-    }
-  }
 }
-
-// impl From<Local<JSValue>> for String {
-//   fn from(lc: Local<JSValue>) -> Self {
-//     let ctx = unsafe { lc.context.as_mut() }.unwrap();
-//     lc.to_string(ctx)
-//   }
-// }
-
-// impl From<JSValue> for Error {
-//   fn from(lc: JSValue) -> Self {
-//     let ctx = unsafe { lc.context.as_mut() }.unwrap();
-//     let (name, message, stack) = if lc.is_error(ctx) {
-//       let name = lc.get_property_str(ctx, "name").into();
-//       let message = lc.get_property_str(ctx, "message").into();
-//       let stack = lc.get_property_str(ctx, "stack").into();
-
-//       (name, message, stack)
-//     } else {
-//       let message = String::from(lc);
-//       ("Exception".to_owned(), message, "".to_owned())
-//     };
-
-//     Self::JSContextError {
-//       name,
-//       stack,
-//       message,
-//     }
-//   }
-// }
 
 #[cfg(test)]
 mod tests {

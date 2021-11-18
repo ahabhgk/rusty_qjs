@@ -1,13 +1,37 @@
-use thiserror::Error;
+use std::{error::Error, fmt::Display};
 
-#[derive(Error, Debug, Clone)]
-pub enum Error {
-  #[error("Arguments index out of range")]
-  ArgumentsIndexOutOfRange,
-  #[error("{name}: {message}\n{stack}")]
-  JSContextError {
-    stack: String,
-    message: String,
-    name: String,
-  },
+use crate::{JSContext, JSValue};
+
+#[derive(Debug)]
+pub struct JSContextException<'ctx> {
+  pub value: JSValue,
+  pub context: &'ctx mut JSContext,
+}
+
+impl<'ctx> JSContextException<'ctx> {
+  pub fn new(ctx: &'ctx mut JSContext, value: JSValue) -> Self {
+    Self {
+      value,
+      context: ctx,
+    }
+  }
+}
+
+impl Error for JSContextException<'_> {}
+
+impl Display for JSContextException<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "JSException: {:?}", self.value)
+  }
+}
+
+#[derive(Debug)]
+pub struct ArgumentsIndexOutOfRange;
+
+impl Error for ArgumentsIndexOutOfRange {}
+
+impl Display for ArgumentsIndexOutOfRange {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "Arguments index out of range")
+  }
 }

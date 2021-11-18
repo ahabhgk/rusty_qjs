@@ -84,7 +84,6 @@ pub fn js_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
       // TODO: catch_unwind
       let ret = #new_fn_name(call_ctx);
-      // let ret = ret.to_qjsrc();
       ret
     }
   };

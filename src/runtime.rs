@@ -3,7 +3,7 @@ use std::{
   ptr::{self, NonNull},
 };
 
-use crate::{support::Opaque, Error, JSContext, JSValue};
+use crate::{error::JSContextException, support::Opaque, JSContext, JSValue};
 
 extern "C" {
   fn JS_NewRuntime() -> *mut JSRuntime;
@@ -53,7 +53,7 @@ impl JSRuntime {
     JS_SetHostPromiseRejectionTracker(self, tracker, opaque);
   }
 
-  pub fn execute_pending_job(&mut self) -> Result<bool, Error> {
+  pub fn execute_pending_job(&mut self) -> Result<bool, JSContextException> {
     let pctx = &mut ptr::null_mut();
     let res = unsafe { JS_ExecutePendingJob(self, pctx) };
     match res {
@@ -63,8 +63,8 @@ impl JSRuntime {
       _ => {
         let pctx = *pctx;
         let pctx = unsafe { pctx.as_mut() }.unwrap();
-        // Err(JSContext::get_exception(pctx).into())
-        Err(JSContext::get_exception(pctx).to_error(pctx))
+        let e = JSContext::get_exception(pctx);
+        Err(JSContextException::new(pctx, e))
       }
     }
   }
