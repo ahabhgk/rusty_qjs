@@ -227,7 +227,7 @@ impl JSValue {
 
 #[cfg(test)]
 mod tests {
-  use crate::runtime::JSRuntime;
+  use crate::JSRuntime;
 
   use super::*;
 
@@ -238,11 +238,10 @@ mod tests {
   }
 
   #[test]
-  fn value_double_free() {
+  fn new_object() {
     let rt = &mut JSRuntime::new();
     let ctx = &mut JSContext::new(rt);
     let mut val = JSValue::new_object(ctx);
     val.free(ctx);
-    // val.free(ctx);
   }
 }
