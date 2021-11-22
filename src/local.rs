@@ -1,27 +1,65 @@
-use std::{marker::PhantomData, mem};
-
-use crate::{
-  error::JSContextException, value::JSFunction, JSContext, JSValue, QuickjsRc,
+use std::{
+  marker::PhantomData,
+  mem,
+  ops::{Deref, DerefMut},
 };
 
+use crate::{error::JSContextException, JSContext, JSValue, QuickjsRc};
+
 pub struct Local<'ctx> {
-  value: JSValue,
+  pub value: JSValue,
   context: *mut JSContext,
   _marker: PhantomData<&'ctx mut JSContext>,
 }
 
 impl Drop for Local<'_> {
   fn drop(&mut self) {
-    let ctx = unsafe { self.context.as_mut() }.unwrap();
+    let ctx = self.get_context_mut();
     self.value.free(ctx)
   }
 }
 
 impl Clone for Local<'_> {
   fn clone(&self) -> Self {
-    let ctx = unsafe { self.context.as_mut() }.unwrap();
+    let ctx = self.get_context_mut();
     let value = self.value.dup(ctx);
     Self::new(ctx, value)
+  }
+}
+
+impl JSValue {
+  pub fn to_local<'ctx>(self, ctx: &mut JSContext) -> Local<'ctx> {
+    Local::new(ctx, self)
+  }
+}
+
+impl Deref for Local<'_> {
+  type Target = JSValue;
+
+  fn deref(&self) -> &Self::Target {
+    &self.value
+  }
+}
+
+impl DerefMut for Local<'_> {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.value
+  }
+}
+
+impl From<Local<'_>> for String {
+  fn from(lc: Local) -> Self {
+    let ctx = unsafe { lc.context.as_mut() }.unwrap();
+    lc.value.to_string(ctx)
+  }
+}
+
+impl<'ctx> From<Local<'ctx>> for JSContextException<'ctx> {
+  fn from(lc: Local<'ctx>) -> Self {
+    let context = lc.get_context_mut();
+    let value = lc.value;
+    mem::forget(lc);
+    Self { value, context }
   }
 }
 
@@ -34,43 +72,18 @@ impl<'ctx> Local<'ctx> {
     }
   }
 
-  pub fn new_undefined(ctx: &mut JSContext) -> Self {
-    let value = JSValue::new_undefined();
-    Self::new(ctx, value)
-  }
-
-  pub fn new_object(ctx: &mut JSContext) -> Self {
-    let value = JSValue::new_object(ctx);
-    Self::new(ctx, value)
-  }
-
-  pub fn new_function(
-    ctx: &mut JSContext,
-    func: JSFunction,
-    name: &str,
-    len: i32,
-  ) -> Self {
-    let value = JSValue::new_function(ctx, func, name, len);
-    Self::new(ctx, value)
+  pub fn get_context_mut(&self) -> &'ctx mut JSContext {
+    unsafe { self.context.as_mut() }.unwrap()
   }
 
   pub fn is_error(&self) -> bool {
-    let ctx = unsafe { self.context.as_mut() }.unwrap();
+    let ctx = self.get_context_mut();
     self.value.is_error(ctx)
   }
 
-  pub fn is_exception(&self) -> bool {
-    self.value.is_exception()
-  }
-
-  pub fn is_undefined(&self) -> bool {
-    self.value.is_undefined()
-  }
-
   pub fn get_property_str(&self, prop: &str) -> Self {
-    let ctx = unsafe { self.context.as_mut() }.unwrap();
-    let value = self.value.get_property_str(ctx, prop);
-    Self::new(ctx, value)
+    let ctx = self.get_context_mut();
+    self.value.get_property_str(ctx, prop).to_local(ctx)
   }
 
   pub fn set_property_str(
@@ -78,7 +91,7 @@ impl<'ctx> Local<'ctx> {
     prop: &str,
     value: Self,
   ) -> Result<bool, JSContextException> {
-    let ctx = unsafe { self.context.as_mut() }.unwrap();
+    let ctx = self.get_context_mut();
     let ret = self.value.set_property_str(ctx, prop, value.value);
     mem::forget(value);
     ret
@@ -100,7 +113,7 @@ mod tests {
     let ctx = &mut JSContext::new(rt);
     // setup console.log
     {
-      extern "C" fn print(
+      extern "C" fn js_print(
         ctx: *mut crate::JSContext,
         this_val: crate::JSValue,
         argc: i32,
@@ -125,13 +138,12 @@ mod tests {
         JSValue::new_undefined()
       }
 
-      let global = ctx.get_global_object();
-      let global = Local::new(ctx, global);
+      let global = ctx.get_global_object().to_local(ctx);
 
-      let console = Local::new_object(ctx);
-      let func = Local::new_function(ctx, print, "log", 1);
+      let console = JSValue::new_object(ctx).to_local(ctx);
+      let log = JSValue::new_function(ctx, js_print, "log", 1).to_local(ctx);
 
-      console.set_property_str("log", func).unwrap();
+      console.set_property_str("log", log).unwrap();
       global.set_property_str("console", console).unwrap();
     }
 

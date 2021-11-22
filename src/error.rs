@@ -8,20 +8,11 @@ pub struct JSContextException<'ctx> {
   pub context: &'ctx mut JSContext,
 }
 
-impl<'ctx> JSContextException<'ctx> {
-  pub fn new(ctx: &'ctx mut JSContext, value: JSValue) -> Self {
-    Self {
-      value,
-      context: ctx,
-    }
-  }
-}
-
 impl Error for JSContextException<'_> {}
 
 impl Display for JSContextException<'_> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "JSException: {:?}", self.value)
+    write!(f, "JSContextException: {:?}", self.value)
   }
 }
 

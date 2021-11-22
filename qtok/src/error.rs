@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-use rusty_qjs::{error::JSContextException, QuickjsRc};
+use rusty_qjs::{error::JSContextException, Local};
 
 pub type AnyError = anyhow::Error;
 
@@ -25,22 +25,15 @@ impl From<JSContextException<'_>> for JSException {
       value,
       context: ctx,
     } = error;
-    let (name, message, stack) = if value.is_error(ctx) {
-      let mut v = value.get_property_str(ctx, "name");
-      let name = v.to_string(ctx);
-      v.free(ctx);
-
-      let mut v = value.get_property_str(ctx, "message");
-      let message = v.to_string(ctx);
-      v.free(ctx);
-
-      let mut v = value.get_property_str(ctx, "stack");
-      let stack = v.to_string(ctx);
-      v.free(ctx);
+    let value = Local::new(ctx, value);
+    let (name, message, stack) = if value.is_error() {
+      let name = value.get_property_str("name").into();
+      let message = value.get_property_str("message").into();
+      let stack = value.get_property_str("stack").into();
 
       (name, message, stack)
     } else {
-      let message = value.to_string(ctx);
+      let message = value.into();
       ("Exception".to_owned(), message, "".to_owned())
     };
 

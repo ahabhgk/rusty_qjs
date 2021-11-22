@@ -216,11 +216,20 @@ impl JSValue {
     match result {
       -1 => {
         let e = ctx.get_exception();
-        Err(JSContextException::new(ctx, e))
+        Err(JSContextException::from_jsvalue(ctx, e))
       }
       0 => Ok(false),
       1 => Ok(true),
       _ => panic!("JS_SetPropertyStr return unexpected"),
+    }
+  }
+}
+
+impl<'ctx> JSContextException<'ctx> {
+  pub fn from_jsvalue(ctx: &'ctx mut JSContext, value: JSValue) -> Self {
+    Self {
+      value,
+      context: ctx,
     }
   }
 }
