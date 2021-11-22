@@ -127,14 +127,14 @@ mod tests {
         let mut stdout = std::io::stdout();
         for i in 0..call_ctx.argc {
           if i != 0 {
-            stdout.write(b" ").unwrap();
+            stdout.write_all(b" ").unwrap();
           }
           let val = call_ctx.get(i).unwrap();
           stdout
-            .write(val.to_string(call_ctx.js_context).as_bytes())
+            .write_all(val.to_string(call_ctx.js_context).as_bytes())
             .unwrap();
         }
-        stdout.write(b"\n").unwrap();
+        stdout.write_all(b"\n").unwrap();
         JSValue::new_undefined()
       }
 
