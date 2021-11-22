@@ -415,7 +415,7 @@ dependencies = [
 
 [[package]]
 name = "qtok"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -447,7 +447,7 @@ dependencies = [
 
 [[package]]
 name = "rusty_qjs"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "cc",
  "libc",
@@ -456,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "rusty_qjs_derive"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "proc-macro2",
  "quote",
