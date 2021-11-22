@@ -24,6 +24,10 @@ extern "C" {
   fn JS_GetRuntime(ctx: *mut JSContext) -> *mut JSRuntime;
 }
 
+/// JSContext represents a Javascript context (or Realm).
+/// Each JSContext has its own global objects and system objects.
+/// There can be several JSContexts per JSRuntime and they can share objects,
+/// similar to frames of the same origin sharing Javascript objects in a web browser.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)] // Clone?
 pub struct JSContext(Opaque);
@@ -62,6 +66,7 @@ impl JSContext {
 }
 
 impl JSContext {
+  /// Create a new JSContext. use JS_NewContext internally.
   #[allow(clippy::new_ret_no_self)]
   pub fn new(rt: &mut JSRuntime) -> OwnedJSContext {
     let ctx = unsafe { JS_NewContext(rt) };
@@ -69,49 +74,60 @@ impl JSContext {
     OwnedJSContext(ctx, PhantomData)
   }
 
+  /// Evaluate the module on this JSContext. use JS_Eval internally.
   pub fn eval_module(&mut self, code: &str, name: &str) -> JSValue {
     self.eval(code, name, true, false)
   }
 
+  /// Compile the module on this JSContext. use JS_Eval internally.
   pub fn compile_module(&mut self, code: &str, name: &str) -> JSValue {
     self.eval(code, name, true, true)
   }
 
+  /// Evaluate the script on this JSContext. use JS_Eval internally.
   pub fn eval_script(&mut self, code: &str, name: &str) -> JSValue {
     self.eval(code, name, false, false)
   }
 
+  /// Compile the script on this JSContext. use JS_Eval internally.
   pub fn compile_script(&mut self, code: &str, name: &str) -> JSValue {
     self.eval(code, name, false, true)
   }
 
+  /// Evaluate the function on this JSContext. use JS_EvalFunction internally.
   pub fn eval_function(&mut self, fun_obj: JSValue) -> JSValue {
     unsafe { JS_EvalFunction(self, fun_obj) }
   }
 
+  /// Get the exception of this JSContext. use JS_GetException internally.
   pub fn get_exception(&mut self) -> JSValue {
     unsafe { JS_GetException(self) }
   }
 
+  /// Get the global object of this JSContext. use JS_GetGlobalObject internally.
   pub fn get_global_object(&mut self) -> JSValue {
     unsafe { JS_GetGlobalObject(self) }
   }
 
+  /// Get the JSRuntime of this JSContext. use JS_GetRuntime internally.
   pub fn get_runtime(&mut self) -> &mut JSRuntime {
     let rt = unsafe { JS_GetRuntime(self) };
     let rt = unsafe { rt.as_mut() }.unwrap();
     rt
   }
 
+  /// Duplicate the JSContext reference count. use JS_DupContext internally.
   pub fn dup(&mut self) -> *mut Self {
     unsafe { JS_DupContext(self) }
   }
 
+  /// Free the JSContext. use JS_FreeContext internally.
   pub fn free(&mut self) {
     unsafe { JS_FreeContext(self) };
   }
 }
 
+/// Same as JSContext but gets freed when it drops.
 pub struct OwnedJSContext<'rt>(NonNull<JSContext>, PhantomData<&'rt JSRuntime>);
 
 impl Drop for OwnedJSContext<'_> {

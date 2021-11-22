@@ -1,3 +1,7 @@
+#![deny(missing_docs)]
+
+//! Rust bindings to QuickJS.
+
 mod call_context;
 mod context;
 pub mod error;

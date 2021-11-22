@@ -29,11 +29,17 @@ pub type JSHostPromiseRejectionTracker = ::std::option::Option<
   ),
 >;
 
+/// JSRuntime represents a Javascript runtime corresponding to an
+/// object heap. Several runtimes can exist at the same time but they
+/// cannot exchange objects. Inside a given runtime, no multi-threading
+/// is supported.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)] // Clone?
 pub struct JSRuntime(Opaque);
 
 impl JSRuntime {
+  /// Create a new JSRuntime.
+  /// use JS_NewJSRuntime internally.
   #[allow(clippy::new_ret_no_self)]
   pub fn new() -> OwnedJSRuntime {
     let rt = unsafe { JS_NewRuntime() };
@@ -41,7 +47,8 @@ impl JSRuntime {
     OwnedJSRuntime(rt)
   }
 
-  /// Set callback to handle host promise rejection
+  /// Set callback to handle host promise rejection.
+  /// use JS_SetHostPromiseRejectionTracker internally.
   ///
   /// # Safety
   ///
@@ -54,6 +61,9 @@ impl JSRuntime {
     JS_SetHostPromiseRejectionTracker(self, tracker, opaque);
   }
 
+  /// Executes next pending job, returns JSContextException if exception,
+  /// false if no job pending, true if a job was executed successfully.
+  /// use JS_ExecutePendingJob internally.
   pub fn execute_pending_job(&mut self) -> Result<bool, JSContextException> {
     let pctx = &mut ptr::null_mut();
     let res = unsafe { JS_ExecutePendingJob(self, pctx) };
@@ -70,11 +80,13 @@ impl JSRuntime {
     }
   }
 
+  /// Free the JSRuntime. use JS_FreeRuntime internally.
   pub fn free(&mut self) {
     unsafe { JS_FreeRuntime(self) };
   }
 }
 
+/// Same as JSRuntime but gets freed when it drops.
 pub struct OwnedJSRuntime(NonNull<JSRuntime>);
 
 impl Drop for OwnedJSRuntime {

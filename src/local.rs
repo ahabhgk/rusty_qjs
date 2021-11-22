@@ -6,7 +6,9 @@ use std::{
 
 use crate::{error::JSContextException, JSContext, JSValue, QuickjsRc};
 
+/// Same as JSValue but gets freed when it drops and duplicated when it clones.
 pub struct Local<'ctx> {
+  /// JSValue of the Local.
   pub value: JSValue,
   context: *mut JSContext,
   _marker: PhantomData<&'ctx mut JSContext>,
@@ -28,6 +30,7 @@ impl Clone for Local<'_> {
 }
 
 impl JSValue {
+  /// Convert the JSValue to Local
   pub fn to_local<'ctx>(self, ctx: &mut JSContext) -> Local<'ctx> {
     Local::new(ctx, self)
   }
@@ -64,6 +67,7 @@ impl<'ctx> From<Local<'ctx>> for JSContextException<'ctx> {
 }
 
 impl<'ctx> Local<'ctx> {
+  /// Create a Local by JSValue and its JSContext.
   pub fn new(ctx: &mut JSContext, value: JSValue) -> Self {
     Self {
       value,
@@ -72,20 +76,24 @@ impl<'ctx> Local<'ctx> {
     }
   }
 
+  /// Get the &mut JSContext of the Local.
   pub fn get_context_mut(&self) -> &'ctx mut JSContext {
     unsafe { self.context.as_mut() }.unwrap()
   }
 
+  /// Returns true if the Local is an error.
   pub fn is_error(&self) -> bool {
     let ctx = self.get_context_mut();
     self.value.is_error(ctx)
   }
 
+  /// Same as JSValue::get_property_str, but for Local type.
   pub fn get_property_str(&self, prop: &str) -> Self {
     let ctx = self.get_context_mut();
     self.value.get_property_str(ctx, prop).to_local(ctx)
   }
 
+  /// Same as JSValue::get_property_str, but for Local type.
   pub fn set_property_str(
     &self,
     prop: &str,
@@ -108,7 +116,7 @@ mod tests {
 
   // TODO: test though assert JSValue reference count number
   #[test]
-  fn global_console() {
+  fn global_console_log() {
     let rt = &mut JSRuntime::new();
     let ctx = &mut JSContext::new(rt);
     // setup console.log

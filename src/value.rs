@@ -66,6 +66,9 @@ union JSValueUnion {
   _union_align: u64,
 }
 
+/// A QuickJS Value, JSValue represents a Javascript value which
+/// can be a primitive type or an object. Reference counting is
+/// implemented by QuickjsRc trait.
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct JSValue {
@@ -139,10 +142,12 @@ impl QuickjsRc for JSValue {
 }
 
 impl JSValue {
+  /// Create a JSValue of object.
   pub fn new_object(ctx: &mut JSContext) -> Self {
     unsafe { JS_NewObject(ctx) }
   }
 
+  /// Create a JSValue of function.
   pub fn new_function(
     ctx: &mut JSContext,
     func: JSFunction,
@@ -160,6 +165,7 @@ impl JSValue {
     }
   }
 
+  /// Create a JSValue of undefined.
   pub fn new_undefined() -> Self {
     Self {
       u: JSValueUnion { int32: 0 },
@@ -167,6 +173,8 @@ impl JSValue {
     }
   }
 
+  /// Convert a JSValue to a string with its length.
+  /// use JS_ToCStringLen internally.
   pub fn to_string_with_len(&self, ctx: &mut JSContext, len: usize) -> String {
     let len = len as *const usize as *mut usize;
     let ptr = unsafe { JS_ToCStringLen_real(ctx, len, *self) };
@@ -175,6 +183,8 @@ impl JSValue {
     cstr_to_string(cstr)
   }
 
+  /// Convert a JSValue to a string.
+  /// use JS_ToCString internally.
   pub fn to_string(&self, ctx: &mut JSContext) -> String {
     let ptr = unsafe { JS_ToCString_real(ctx, *self) };
     let cstr = unsafe { CStr::from_ptr(ptr) };
@@ -182,19 +192,27 @@ impl JSValue {
     cstr_to_string(cstr)
   }
 
+  /// Returns true if the JSValue is an error.
+  /// use JS_IsError internally.
   pub fn is_error(&self, ctx: &mut JSContext) -> bool {
     let jsbool = unsafe { JS_IsError(ctx, *self) };
     jsbool_to_bool(jsbool)
   }
 
+  /// Returns true if the JSValue is an exception.
+  /// use JS_IsException internally.
   pub fn is_exception(&self) -> bool {
     unsafe { JS_IsException_real(*self) }
   }
 
+  /// Returns true if the JSValue is undefined.
+  /// use JS_IsUndefined internally.
   pub fn is_undefined(&self) -> bool {
     unsafe { JS_IsUndefined_real(*self) }
   }
 
+  /// Get property from a JSValue by str.
+  /// use JS_GetPropertyStr internally.
   pub fn get_property_str<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -204,6 +222,8 @@ impl JSValue {
     unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) }
   }
 
+  /// Set property on a JSValue by str.
+  /// use JS_SetPropertyStr internally.
   pub fn set_property_str<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -226,6 +246,7 @@ impl JSValue {
 }
 
 impl<'ctx> JSContextException<'ctx> {
+  /// Create a JSContextException from a JSValue and its JSContext.
   pub fn from_jsvalue(ctx: &'ctx mut JSContext, value: JSValue) -> Self {
     Self {
       value,

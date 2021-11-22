@@ -6,6 +6,7 @@ authors = ["ahabhgk <ahabhgk@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/ahabhgk/rusty_qjs"
 description = "Rust bindings to QuickJS"
+exclude = ["src/sys/*"]
 
 [features]
 local = []
