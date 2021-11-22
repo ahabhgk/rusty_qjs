@@ -14,7 +14,7 @@ name = "qtok"
 rusty_qjs = { path = "../" }
 rusty_qjs_derive = { path = "../derive" }
 
-anyhow = "1.0.44"
+anyhow = "1.0.47"
 thiserror = "1.0.30"
 clap = "3.0.0-beta.5"
 tokio = { version = "1.14.0", features = ["full"] }
