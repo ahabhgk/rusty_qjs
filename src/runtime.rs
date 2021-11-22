@@ -65,7 +65,7 @@ impl JSRuntime {
         let pctx = *pctx;
         let pctx = unsafe { pctx.as_mut() }.unwrap();
         let e = JSContext::get_exception(pctx);
-        Err(JSContextException::new(pctx, e))
+        Err(JSContextException::from_jsvalue(pctx, e))
       }
     }
   }

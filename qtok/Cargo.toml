@@ -11,7 +11,7 @@ description = "Toy JavaScript runtime built with rusty_qjs and tokio"
 name = "qtok"
 
 [dependencies]
-rusty_qjs = { path = "../" }
+rusty_qjs = { path = "../", features = ["local"] }
 rusty_qjs_derive = { path = "../derive" }
 
 anyhow = "1.0.47"

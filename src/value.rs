@@ -216,7 +216,7 @@ impl JSValue {
     match result {
       -1 => {
         let e = ctx.get_exception();
-        Err(JSContextException::new(ctx, e))
+        Err(JSContextException::from_jsvalue(ctx, e))
       }
       0 => Ok(false),
       1 => Ok(true),
@@ -225,9 +225,18 @@ impl JSValue {
   }
 }
 
+impl<'ctx> JSContextException<'ctx> {
+  pub fn from_jsvalue(ctx: &'ctx mut JSContext, value: JSValue) -> Self {
+    Self {
+      value,
+      context: ctx,
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
-  use crate::runtime::JSRuntime;
+  use crate::JSRuntime;
 
   use super::*;
 
@@ -238,11 +247,10 @@ mod tests {
   }
 
   #[test]
-  fn value_double_free() {
+  fn new_object() {
     let rt = &mut JSRuntime::new();
     let ctx = &mut JSContext::new(rt);
     let mut val = JSValue::new_object(ctx);
     val.free(ctx);
-    // val.free(ctx);
   }
 }

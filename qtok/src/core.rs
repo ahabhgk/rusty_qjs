@@ -2,8 +2,8 @@ use std::{ffi::c_void, fs, path::Path, task::Poll};
 
 use futures::future::poll_fn;
 use rusty_qjs::{
-  error::JSContextException, JSContext, JSRuntime, JSValue, OwnedJSContext,
-  QuickjsRc,
+  error::JSContextException, JSContext, JSRuntime, JSValue, Local,
+  OwnedJSContext, QuickjsRc,
 };
 
 use crate::{error::AnyError, error::JSException, ext};
@@ -19,7 +19,7 @@ extern "C" fn host_promise_rejection_tracker(
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
     let ctx = unsafe { ctx.as_mut() }.unwrap();
     reason.dup(ctx);
-    let e = JSContextException::new(ctx, reason).into();
+    let e = JSContextException::from_jsvalue(ctx, reason).into();
     qtok.pending_promise_exceptions.push(e)
   }
 }
@@ -29,14 +29,6 @@ pub struct Qtok<'rt> {
   pending_promise_exceptions: Vec<JSException>,
   // pending_ops:
 }
-
-// TODO: drop should called by js_context and js_runtime, hack for now
-// impl Drop for Qtok<'_> {
-//   fn drop(&mut self) {
-//     self.js_context.free();
-//     // self.js_runtime.free();
-//   }
-// }
 
 impl<'rt> Qtok<'rt> {
   pub fn new(rt: &'rt mut JSRuntime) -> Self {
@@ -79,7 +71,7 @@ impl<'rt> Qtok<'rt> {
     &mut self,
     path: &Path,
     _is_main: bool,
-  ) -> Result<JSValue, AnyError> {
+  ) -> Result<Local, AnyError> {
     let code = fs::read_to_string(path)?;
     let code = &code[..];
     let name = path.to_str().unwrap();
@@ -92,7 +84,10 @@ impl<'rt> Qtok<'rt> {
     // js_module_set_import_meta(ctx, &ret, true, is_main)?;
 
     // TODO: eval module, continue abstract eval?
-    let ret = self.js_context.eval_function(ret);
+    let ret = self
+      .js_context
+      .eval_function(ret)
+      .to_local(&mut self.js_context);
     if ret.is_exception() {
       return Err(self.dump_error().into());
     }
@@ -104,7 +99,7 @@ impl<'rt> Qtok<'rt> {
     poll_fn(|_cx| {
       self.perform_microtasks()?;
       self.check_promise_exceptions()?;
-      return Poll::Ready(Ok(()));
+      Poll::Ready(Ok(()))
     })
     .await
   }
@@ -129,9 +124,11 @@ impl<'rt> Qtok<'rt> {
   }
 
   fn dump_error(&mut self) -> JSException {
-    let mut exception = self.js_context.get_exception();
-    let error = JSContextException::new(&mut self.js_context, exception).into();
-    exception.free(&mut self.js_context);
-    error
+    let exception = self
+      .js_context
+      .get_exception()
+      .to_local(&mut self.js_context);
+    let exception = JSContextException::from(exception);
+    exception.into()
   }
 }
