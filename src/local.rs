@@ -127,7 +127,7 @@ mod tests {
         argv: &[JSValue],
       ) -> JSValue {
         let output = argv
-          .into_iter()
+          .iter()
           .map(|value| value.to_string(ctx))
           .collect::<Vec<String>>()
           .join(" ");
