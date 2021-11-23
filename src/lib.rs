@@ -20,4 +20,5 @@ pub use local::Local;
 pub use quickjs_rc::QuickjsRc;
 pub use runtime::JSRuntime;
 pub use runtime::OwnedJSRuntime;
+pub use value::JSFunction;
 pub use value::JSValue;

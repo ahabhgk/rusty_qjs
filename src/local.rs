@@ -121,27 +121,18 @@ mod tests {
     let ctx = &mut JSContext::new(rt);
     // setup console.log
     {
-      extern "C" fn js_print(
-        ctx: *mut crate::JSContext,
-        this_val: crate::JSValue,
-        argc: i32,
-        argv: *mut crate::JSValue,
-      ) -> crate::JSValue {
-        let mut ctx = unsafe { ctx.as_mut() }.unwrap();
-        let mut call_ctx =
-          crate::CallContext::new(&mut ctx, this_val, argc, argv);
-
-        // real function
+      fn js_print(
+        ctx: &mut JSContext,
+        _this: JSValue,
+        argv: &[JSValue],
+      ) -> JSValue {
+        let output = argv
+          .iter()
+          .map(|value| value.to_string(ctx))
+          .collect::<Vec<String>>()
+          .join(" ");
         let mut stdout = std::io::stdout();
-        for i in 0..call_ctx.argc {
-          if i != 0 {
-            stdout.write_all(b" ").unwrap();
-          }
-          let val = call_ctx.get(i).unwrap();
-          stdout
-            .write_all(val.to_string(call_ctx.js_context).as_bytes())
-            .unwrap();
-        }
+        stdout.write_all(output.as_bytes()).unwrap();
         stdout.write_all(b"\n").unwrap();
         JSValue::new_undefined()
       }
