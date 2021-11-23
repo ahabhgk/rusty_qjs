@@ -79,6 +79,7 @@ impl JSRuntime {
 
   /// Set callback to handle host promise rejection.
   /// use JS_SetHostPromiseRejectionTracker internally.
+  #[allow(clippy::not_unsafe_ptr_arg_deref)]
   pub fn set_host_promise_rejection_tracker(
     &mut self,
     tracker: impl MapFnTo<JSHostPromiseRejectionTracker>,

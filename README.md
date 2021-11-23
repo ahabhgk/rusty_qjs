@@ -16,7 +16,7 @@ conveniences of it.
 ## Example
 
 ```rust
-use rusty_qjs::{CallContext, JSContext, JSRuntime, JSValue};
+use rusty_qjs::{JSContext, JSRuntime, JSValue};
 use std::io::Write;
 
 fn js_print(ctx: &mut JSContext, _this: JSValue, argv: &[JSValue]) -> JSValue {

@@ -1,4 +1,4 @@
-#![deny(missing_docs)]
+#![deny(clippy::all, missing_docs)]
 
 //! Rust bindings to QuickJS.
 
