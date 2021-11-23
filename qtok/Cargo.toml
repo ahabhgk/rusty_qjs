@@ -12,7 +12,6 @@ name = "qtok"
 
 [dependencies]
 rusty_qjs = { path = "../", features = ["local"] }
-rusty_qjs_derive = { path = "../derive" }
 
 anyhow = "1.0.47"
 thiserror = "1.0.30"

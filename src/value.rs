@@ -1,6 +1,6 @@
 use std::{
   ffi::{CStr, CString},
-  fmt,
+  fmt, mem,
 };
 
 use crate::{
@@ -17,7 +17,7 @@ extern "C" {
   fn JS_NewObject(ctx: *mut JSContext) -> JSValue;
   fn JS_NewCFunction_real(
     ctx: *mut JSContext,
-    func: *mut JSCFunction,
+    func: *mut GenJSCFunction,
     name: *const ::std::os::raw::c_char,
     length: ::std::os::raw::c_int,
   ) -> JSValue;
@@ -47,7 +47,7 @@ extern "C" {
   ) -> libc::c_int;
 }
 
-type JSCFunction = ::std::option::Option<
+type GenJSCFunction = ::std::option::Option<
   unsafe extern "C" fn(
     ctx: *mut JSContext,
     this_val: JSValue,
@@ -57,10 +57,10 @@ type JSCFunction = ::std::option::Option<
 >;
 
 /// Used by JSValue::new_function to create a JavaScript function from JSFunction.
-pub type JSFunction =
+pub type JSCFunction =
   extern "C" fn(*mut JSContext, JSValue, libc::c_int, *mut JSValue) -> JSValue;
 
-impl<F> MapFnFrom<F> for JSFunction
+impl<F> MapFnFrom<F> for JSCFunction
 where
   F: UnitType + Fn(&mut JSContext, JSValue, &[JSValue]) -> JSValue,
 {
@@ -177,14 +177,14 @@ impl JSValue {
     len: i32,
   ) -> Self
   where
-    F: MapFnTo<JSFunction>,
+    F: MapFnTo<JSCFunction>,
   {
     let name_cstring = CString::new(name).unwrap();
     let func = func.map_fn_to();
     unsafe {
       JS_NewCFunction_real(
         ctx,
-        std::mem::transmute(func as *mut ()),
+        mem::transmute(func as *mut ()),
         name_cstring.as_ptr(),
         len,
       )

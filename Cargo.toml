@@ -19,4 +19,4 @@ thiserror = "1.0.30"
 cc = { version = "1.0", features = ["parallel"] }
 
 [workspace]
-members = ["./derive", "./qtok"]
+members = ["./qtok"]

@@ -29,7 +29,7 @@ extern "C" {
 /// There can be several JSContexts per JSRuntime and they can share objects,
 /// similar to frames of the same origin sharing Javascript objects in a web browser.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)] // Clone?
+#[derive(Debug, Copy, Clone)]
 pub struct JSContext(Opaque);
 
 impl JSContext {
