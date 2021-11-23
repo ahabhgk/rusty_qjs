@@ -21,7 +21,7 @@ use std::io::Write;
 
 fn js_print(ctx: &mut JSContext, _this: JSValue, argv: &[JSValue]) -> JSValue {
   let output = argv
-    .into_iter()
+    .iter()
     .map(|value| value.to_string(ctx))
     .collect::<Vec<String>>()
     .join(" ");
