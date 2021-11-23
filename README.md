@@ -19,25 +19,14 @@ conveniences of it.
 use rusty_qjs::{CallContext, JSContext, JSRuntime, JSValue};
 use std::io::Write;
 
-extern "C" fn js_print(
-  ctx: *mut JSContext,
-  this_val: JSValue,
-  argc: i32,
-  argv: *mut JSValue,
-) -> JSValue {
-  let mut ctx = unsafe { ctx.as_mut() }.unwrap();
-  let mut call_ctx = CallContext::new(&mut ctx, this_val, argc, argv);
-
+fn js_print(ctx: &mut JSContext, _this: JSValue, argv: &[JSValue]) -> JSValue {
+  let output = argv
+    .into_iter()
+    .map(|value| value.to_string(ctx))
+    .collect::<Vec<String>>()
+    .join(" ");
   let mut stdout = std::io::stdout();
-  for i in 0..call_ctx.argc {
-    if i != 0 {
-      stdout.write_all(b" ").unwrap();
-    }
-    let val = call_ctx.get(i).unwrap();
-    stdout
-      .write_all(val.to_string(call_ctx.js_context).as_bytes())
-      .unwrap();
-  }
+  stdout.write_all(output.as_bytes()).unwrap();
   stdout.write_all(b"\n").unwrap();
   JSValue::new_undefined()
 }
@@ -59,3 +48,5 @@ fn main() {
   ctx.eval_script("console.log(\"hello world\")", "<test>");
 }
 ```
+
+For a more in-depth example, look at [qtok](https://github.com/ahabhgk/rusty_qjs/tree/main/qtok)

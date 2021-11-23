@@ -5,7 +5,9 @@ use std::{
 
 use crate::{
   error::JSContextException,
-  support::{cstr_to_string, jsbool_to_bool},
+  support::{
+    cstr_to_string, jsbool_to_bool, MapFnFrom, MapFnTo, ToCFn, UnitType,
+  },
   JSContext, QuickjsRc,
 };
 
@@ -54,8 +56,28 @@ type JSCFunction = ::std::option::Option<
   ) -> JSValue,
 >;
 
+/// Used by JSValue::new_function to create a JavaScript function from JSFunction.
 pub type JSFunction =
-  extern "C" fn(*mut JSContext, JSValue, i32, *mut JSValue) -> JSValue;
+  extern "C" fn(*mut JSContext, JSValue, libc::c_int, *mut JSValue) -> JSValue;
+
+impl<F> MapFnFrom<F> for JSFunction
+where
+  F: UnitType + Fn(&mut JSContext, JSValue, &[JSValue]) -> JSValue,
+{
+  fn mapping() -> Self {
+    let f =
+      |ctx: *mut JSContext, this: JSValue, argc: i32, argv: *mut JSValue| {
+        let mut arguments = Vec::new();
+        for i in 0..argc {
+          let arg = unsafe { *argv.offset(i as isize) };
+          arguments.push(arg);
+        }
+        let ctx = unsafe { ctx.as_mut() }.unwrap();
+        (F::get())(ctx, this, arguments.as_slice())
+      };
+    f.to_c_fn()
+  }
+}
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -148,13 +170,17 @@ impl JSValue {
   }
 
   /// Create a JSValue of function.
-  pub fn new_function(
+  pub fn new_function<F>(
     ctx: &mut JSContext,
-    func: JSFunction,
+    func: F,
     name: &str,
     len: i32,
-  ) -> Self {
+  ) -> Self
+  where
+    F: MapFnTo<JSFunction>,
+  {
     let name_cstring = CString::new(name).unwrap();
+    let func = func.map_fn_to();
     unsafe {
       JS_NewCFunction_real(
         ctx,
