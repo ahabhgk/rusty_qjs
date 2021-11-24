@@ -1,19 +1,27 @@
 use std::{
   ffi::{CStr, CString},
-  fmt, mem,
+  fmt, mem, ptr,
 };
 
 use crate::{
   error::JSContextException,
-  support::{
-    cstr_to_string, jsbool_to_bool, MapFnFrom, MapFnTo, ToCFn, UnitType,
-  },
-  JSContext, QuickjsRc,
+  support::{cstr_to_string, MapFnFrom, MapFnTo, ToCFn, UnitType},
+  JSContext, JSRuntime, QuickjsRc,
 };
 
 extern "C" {
   fn JS_FreeValue_real(ctx: *mut JSContext, v: JSValue);
+  fn JS_FreeValueRT_real(rt: *mut JSRuntime, v: JSValue);
   fn JS_DupValue_real(ctx: *mut JSContext, v: JSValue) -> JSValue;
+  fn JS_DupValueRT_real(ctx: *mut JSRuntime, v: JSValue) -> JSValue;
+  fn JS_NewBool_real(ctx: *mut JSContext, v: bool) -> JSValue;
+  fn JS_NewInt32_real(ctx: *mut JSContext, v: i32) -> JSValue;
+  fn JS_NewInt64_real(ctx: *mut JSContext, v: i64) -> JSValue;
+  fn JS_NewUint32_real(ctx: *mut JSContext, v: u32) -> JSValue;
+  fn JS_NewFloat64_real(ctx: *mut JSContext, v: f64) -> JSValue;
+  pub fn JS_NewBigInt64(ctx: *mut JSContext, v: i64) -> JSValue;
+  pub fn JS_NewBigUint64(ctx: *mut JSContext, v: u64) -> JSValue;
+  fn JS_NewCatchOffset_real(ctx: *mut JSContext, v: i32) -> JSValue;
   fn JS_NewObject(ctx: *mut JSContext) -> JSValue;
   fn JS_NewCFunction_real(
     ctx: *mut JSContext,
@@ -31,9 +39,63 @@ extern "C" {
     val1: JSValue,
   ) -> *const libc::c_char;
   fn JS_FreeCString(ctx: *mut JSContext, ptr: *const libc::c_char);
-  fn JS_IsError(ctx: *mut JSContext, val: JSValue) -> libc::c_int;
+  fn JS_IsNumber_real(v: JSValue) -> bool;
+  fn JS_IsBigInt_real(ctx: *mut JSContext, v: JSValue) -> bool;
+  fn JS_IsBigFloat_real(v: JSValue) -> bool;
+  fn JS_IsBigDecimal_real(v: JSValue) -> bool;
+  fn JS_IsBool_real(v: JSValue) -> bool;
+  fn JS_IsNull_real(v: JSValue) -> bool;
   fn JS_IsException_real(v: JSValue) -> bool;
   fn JS_IsUndefined_real(v: JSValue) -> bool;
+  fn JS_IsUninitialized_real(v: JSValue) -> bool;
+  fn JS_IsString_real(v: JSValue) -> bool;
+  fn JS_IsSymbol_real(v: JSValue) -> bool;
+  fn JS_IsObject_real(v: JSValue) -> bool;
+  fn JS_NewError(ctx: *mut JSContext) -> JSValue;
+  fn JS_Throw(ctx: *mut JSContext, obj: JSValue) -> JSValue;
+  fn JS_IsError(ctx: *mut JSContext, val: JSValue) -> bool;
+  fn JS_ThrowSyntaxError(
+    ctx: *mut JSContext,
+    fmt: *const libc::c_char,
+    ...
+  ) -> JSValue;
+  fn JS_ThrowTypeError(
+    ctx: *mut JSContext,
+    fmt: *const libc::c_char,
+    ...
+  ) -> JSValue;
+  fn JS_ThrowReferenceError(
+    ctx: *mut JSContext,
+    fmt: *const libc::c_char,
+    ...
+  ) -> JSValue;
+  fn JS_ThrowRangeError(
+    ctx: *mut JSContext,
+    fmt: *const libc::c_char,
+    ...
+  ) -> JSValue;
+  fn JS_ThrowInternalError(
+    ctx: *mut JSContext,
+    fmt: *const libc::c_char,
+    ...
+  ) -> JSValue;
+  fn JS_ThrowOutOfMemory(ctx: *mut JSContext) -> JSValue;
+  fn JS_ToBool(ctx: *mut JSContext, val: JSValue) -> libc::c_int;
+  fn JS_ToInt32(
+    ctx: *mut JSContext,
+    pres: *mut i32,
+    val: JSValue,
+  ) -> libc::c_int;
+  fn JS_ToUint32_real(
+    ctx: *mut JSContext,
+    pres: *mut u32,
+    val: JSValue,
+  ) -> libc::c_int;
+  fn JS_ToInt64(
+    ctx: *mut JSContext,
+    pres: *mut i64,
+    val: JSValue,
+  ) -> libc::c_int;
   fn JS_GetPropertyStr(
     ctx: *mut JSContext,
     this_obj: JSValue,
@@ -158,18 +220,64 @@ impl QuickjsRc for JSValue {
     }
   }
 
-  fn dup(&self, ctx: &mut JSContext) -> Self {
+  fn free_runtime(&mut self, rt: &mut JSRuntime) {
+    // JS_TAG_MODULE never freed, see quickjs.c#L5518
+    if self.tag != Self::JS_TAG_MODULE.into() {
+      unsafe { JS_FreeValueRT_real(rt, *self) };
+    }
+  }
+
+  fn dup(&mut self, ctx: &mut JSContext) -> Self {
     unsafe { JS_DupValue_real(ctx, *self) }
+  }
+
+  fn dup_runtime(&mut self, rt: &mut JSRuntime) -> Self {
+    unsafe { JS_DupValueRT_real(rt, *self) }
   }
 }
 
 impl JSValue {
-  /// Create a JSValue of object.
+  /// Create a JSValue of boolean. use JS_NewBool internally.
+  pub fn new_bool(ctx: &mut JSContext, value: bool) -> Self {
+    unsafe { JS_NewBool_real(ctx, value) }
+  }
+
+  /// Create a JSValue of int32. use JS_NewInt32 internally.
+  pub fn new_int32(ctx: &mut JSContext, value: i32) -> Self {
+    unsafe { JS_NewInt32_real(ctx, value) }
+  }
+
+  /// Create a JSValue of int64. use JS_NewInt64 internally.
+  pub fn new_int64(ctx: &mut JSContext, value: i64) -> Self {
+    unsafe { JS_NewInt64_real(ctx, value) }
+  }
+
+  /// Create a JSValue of uint32. use JS_NewUint32 internally.
+  pub fn new_uint32(ctx: &mut JSContext, value: u32) -> Self {
+    unsafe { JS_NewUint32_real(ctx, value) }
+  }
+
+  /// Create a JSValue of float64. use JS_NewFloat64 internally.
+  pub fn new_float64(ctx: &mut JSContext, value: f64) -> Self {
+    unsafe { JS_NewFloat64_real(ctx, value) }
+  }
+
+  /// Create a JSValue of big int64. use JS_NewBigInt64 internally.
+  pub fn new_big_int64(ctx: &mut JSContext, value: i64) -> Self {
+    unsafe { JS_NewBigInt64(ctx, value) }
+  }
+
+  /// Create a JSValue of big uint64. use JS_NewBigUint64 internally.
+  pub fn new_big_uint64(ctx: &mut JSContext, value: u64) -> Self {
+    unsafe { JS_NewBigUint64(ctx, value) }
+  }
+
+  /// Create a JSValue of object. use JS_NewObject internally.
   pub fn new_object(ctx: &mut JSContext) -> Self {
     unsafe { JS_NewObject(ctx) }
   }
 
-  /// Create a JSValue of function.
+  /// Create a JSValue of function. use JS_NewCFunction internally.
   pub fn new_function<F>(
     ctx: &mut JSContext,
     func: F,
@@ -199,8 +307,17 @@ impl JSValue {
     }
   }
 
-  /// Convert a JSValue to a string with its length.
-  /// use JS_ToCStringLen internally.
+  /// Create a JSValue of Error.
+  pub fn new_error(ctx: &mut JSContext) -> Self {
+    unsafe { JS_NewError(ctx) }
+  }
+
+  /// Create a JSValue of catch offset. use JS_NewCatchOffset internally.
+  pub fn new_catch_offset(ctx: &mut JSContext, value: i32) -> Self {
+    unsafe { JS_NewCatchOffset_real(ctx, value) }
+  }
+
+  /// Convert a JSValue to a string with its length. use JS_ToCStringLen internally.
   pub fn to_string_with_len(&self, ctx: &mut JSContext, len: usize) -> String {
     let len = len as *const usize as *mut usize;
     let ptr = unsafe { JS_ToCStringLen_real(ctx, len, *self) };
@@ -209,8 +326,7 @@ impl JSValue {
     cstr_to_string(cstr)
   }
 
-  /// Convert a JSValue to a string.
-  /// use JS_ToCString internally.
+  /// Convert a JSValue to a string. use JS_ToCString internally.
   pub fn to_string(&self, ctx: &mut JSContext) -> String {
     let ptr = unsafe { JS_ToCString_real(ctx, *self) };
     let cstr = unsafe { CStr::from_ptr(ptr) };
@@ -218,27 +334,177 @@ impl JSValue {
     cstr_to_string(cstr)
   }
 
-  /// Returns true if the JSValue is an error.
-  /// use JS_IsError internally.
-  pub fn is_error(&self, ctx: &mut JSContext) -> bool {
-    let jsbool = unsafe { JS_IsError(ctx, *self) };
-    jsbool_to_bool(jsbool)
+  /// Returns true if the JSValue is a number. use JS_IsNumber internally.
+  pub fn is_number(&self) -> bool {
+    unsafe { JS_IsNumber_real(*self) }
   }
 
-  /// Returns true if the JSValue is an exception.
-  /// use JS_IsException internally.
+  /// Returns true if the JSValue is a big int. use JS_IsBigInt internally.
+  pub fn is_big_int(&self, ctx: &mut JSContext) -> bool {
+    unsafe { JS_IsBigInt_real(ctx, *self) }
+  }
+
+  /// Returns true if the JSValue is a big float. use JS_IsBigFloat internally.
+  pub fn is_big_float(&self) -> bool {
+    unsafe { JS_IsBigFloat_real(*self) }
+  }
+
+  /// Returns true if the JSValue is a big decimal. use JS_IsBigDecimal internally.
+  pub fn is_big_decimal(&self) -> bool {
+    unsafe { JS_IsBigDecimal_real(*self) }
+  }
+
+  /// Returns true if the JSValue is a boolean. use JS_IsBool internally.
+  pub fn is_bool(&self) -> bool {
+    unsafe { JS_IsBool_real(*self) }
+  }
+
+  /// Returns true if the JSValue is null. use JS_IsNull internally.
+  pub fn is_null(&self) -> bool {
+    unsafe { JS_IsNull_real(*self) }
+  }
+
+  /// Returns true if the JSValue is an error. use JS_IsError internally.
+  pub fn is_error(&self, ctx: &mut JSContext) -> bool {
+    unsafe { JS_IsError(ctx, *self) }
+  }
+
+  /// Returns true if the JSValue is an exception. use JS_IsException internally.
   pub fn is_exception(&self) -> bool {
     unsafe { JS_IsException_real(*self) }
   }
 
-  /// Returns true if the JSValue is undefined.
-  /// use JS_IsUndefined internally.
+  /// Returns true if the JSValue is undefined. use JS_IsUndefined internally.
   pub fn is_undefined(&self) -> bool {
     unsafe { JS_IsUndefined_real(*self) }
   }
 
-  /// Get property from a JSValue by str.
-  /// use JS_GetPropertyStr internally.
+  /// Returns true if the JSValue is uninitialized. use JS_IsUninitialized internally.
+  pub fn is_uninitialized(&self) -> bool {
+    unsafe { JS_IsUninitialized_real(*self) }
+  }
+
+  /// Returns true if the JSValue is a string. use JS_IsString internally.
+  pub fn is_string(&self) -> bool {
+    unsafe { JS_IsString_real(*self) }
+  }
+
+  /// Returns true if the JSValue is a symbol. use JS_IsSymbol internally.
+  pub fn is_symbol(&self) -> bool {
+    unsafe { JS_IsSymbol_real(*self) }
+  }
+
+  /// Returns true if the JSValue is an object. use JS_IsObject internally.
+  pub fn is_object(&self) -> bool {
+    unsafe { JS_IsObject_real(*self) }
+  }
+
+  /// Throw the JSValue, `JSValue::new_bool(ctx, false).throw(ctx)` => `throw false`.
+  /// use JS_Throw internally.
+  pub fn throw(&self, ctx: &mut JSContext) -> Self {
+    unsafe { JS_Throw(ctx, *self) }
+  }
+
+  /// Create a SyntaxError with message and throw it, use JS_ThrowSyntaxError internally.
+  pub fn throw_syntax_error(ctx: &mut JSContext, message: &str) -> Self {
+    let message = CString::new(message).unwrap();
+    unsafe { JS_ThrowSyntaxError(ctx, message.as_ptr()) }
+  }
+
+  /// Create a TypeError with message and throw it, use JS_ThrowTypeError internally.
+  pub fn throw_type_error(ctx: &mut JSContext, message: &str) -> Self {
+    let message = CString::new(message).unwrap();
+    unsafe { JS_ThrowTypeError(ctx, message.as_ptr()) }
+  }
+
+  /// Create a TypeError with message and throw it, use JS_ThrowReferenceError internally.
+  pub fn throw_reference_error(ctx: &mut JSContext, message: &str) -> Self {
+    let message = CString::new(message).unwrap();
+    unsafe { JS_ThrowReferenceError(ctx, message.as_ptr()) }
+  }
+
+  /// Create a TypeError with message and throw it, use JS_ThrowRangeError internally.
+  pub fn throw_range_error(ctx: &mut JSContext, message: &str) -> Self {
+    let message = CString::new(message).unwrap();
+    unsafe { JS_ThrowRangeError(ctx, message.as_ptr()) }
+  }
+
+  /// Create a TypeError with message and throw it, use JS_ThrowInternalError internally.
+  pub fn throw_internal_error(ctx: &mut JSContext, message: &str) -> Self {
+    let message = CString::new(message).unwrap();
+    unsafe { JS_ThrowInternalError(ctx, message.as_ptr()) }
+  }
+
+  /// Create a TypeError with message and throw it, use JS_ThrowOutOfMemory internally.
+  pub fn throw_out_of_memory(ctx: &mut JSContext) -> Self {
+    unsafe { JS_ThrowOutOfMemory(ctx) }
+  }
+
+  /// Convert a JSValue to a bool, use JS_ToBool internally.
+  pub fn to_bool<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<bool, JSContextException<'ctx>> {
+    let res = unsafe { JS_ToBool(ctx, *self) };
+    match res {
+      -1 => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+      0 => Ok(false),
+      _ => Ok(true),
+    }
+  }
+
+  /// Convert a JSValue to an i32, use JS_ToInt32 internally.
+  pub fn to_int32<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<i32, JSContextException<'ctx>> {
+    let pres = ptr::null_mut();
+    let res = unsafe { JS_ToInt32(ctx, pres, *self) };
+    match res {
+      0 => Ok(unsafe { *pres }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// Convert a JSValue to an u32, use JS_ToUint32 internally.
+  pub fn to_uint32<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<u32, JSContextException<'ctx>> {
+    let pres = ptr::null_mut();
+    let res = unsafe { JS_ToUint32_real(ctx, pres, *self) };
+    match res {
+      0 => Ok(unsafe { *pres }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// Convert a JSValue to an i64, use JS_ToInt64 internally.
+  pub fn to_int64<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<i64, JSContextException<'ctx>> {
+    let pres = ptr::null_mut();
+    let res = unsafe { JS_ToInt64(ctx, pres, *self) };
+    match res {
+      0 => Ok(unsafe { *pres }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// Get property from a JSValue by a &str prop. use JS_GetPropertyStr internally.
   pub fn get_property_str<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -248,8 +514,7 @@ impl JSValue {
     unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) }
   }
 
-  /// Set property on a JSValue by str.
-  /// use JS_SetPropertyStr internally.
+  /// Set property on a JSValue by a &str prop. use JS_SetPropertyStr internally.
   pub fn set_property_str<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,

@@ -7,11 +7,9 @@ Rust bindings to QuickJS.
 ### local
 
 The JSValue of QuickJS is using reference counting to manage the memory. So we
-create a Local handle to help you manage the reference count. The Local
-implements Clone using JS_DupValue to increment the reference count, and
-implements Drop using JS_FreeValue to decrement the reference count. You can
-simply use `to_local` to convert a JSValue into a Local handle, then enjoy the
-conveniences of it.
+create a Local handle to help you free the JSValue. The Local will call
+JS_FreeValue when it drops. You can simply use `to_local` to convert a JSValue
+into a Local handle, then enjoy the conveniences of it.
 
 ## Example
 
@@ -49,4 +47,5 @@ fn main() {
 }
 ```
 
-For a more in-depth example, look at [qtok](https://github.com/ahabhgk/rusty_qjs/tree/main/qtok)
+For a more in-depth example, look at
+[qtok](https://github.com/ahabhgk/rusty_qjs/tree/main/qtok)

@@ -33,6 +33,18 @@ JSValue JS_NewInt32_real(JSContext *ctx, int32_t val) {
     return JS_NewInt32(ctx, val);
 }
 
+JSValue JS_NewInt64_real(JSContext *ctx, int64_t val) {
+    return JS_NewInt64(ctx, val);
+}
+
+JSValue JS_NewUint32_real(JSContext *ctx, uint32_t val) {
+    return JS_NewUint32(ctx, val);
+}
+
+JSValue JS_NewCatchOffset_real(JSContext *ctx, int32_t val) {
+    return JS_NewCatchOffset(ctx, val);
+}
+
 JSValue JS_NewBool_real(JSContext *ctx, JS_BOOL val) {
     return JS_NewBool(ctx, val) ;
 }

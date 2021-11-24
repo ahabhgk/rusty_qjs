@@ -21,14 +21,6 @@ impl Drop for Local<'_> {
   }
 }
 
-impl Clone for Local<'_> {
-  fn clone(&self) -> Self {
-    let ctx = self.get_context_mut();
-    let value = self.value.dup(ctx);
-    Self::new(ctx, value)
-  }
-}
-
 impl JSValue {
   /// Convert the JSValue to Local
   pub fn to_local<'ctx>(self, ctx: &mut JSContext) -> Local<'ctx> {
@@ -74,6 +66,13 @@ impl<'ctx> Local<'ctx> {
       context: ctx,
       _marker: PhantomData,
     }
+  }
+
+  /// Clone the Local, and increment the reference count of the JValue in it.
+  pub fn dup(&mut self) -> Self {
+    let ctx = self.get_context_mut();
+    let value = self.value.dup(ctx);
+    Self::new(ctx, value)
   }
 
   /// Get the &mut JSContext of the Local.

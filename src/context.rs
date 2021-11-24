@@ -22,6 +22,7 @@ extern "C" {
   fn JS_GetException(ctx: *mut JSContext) -> JSValue;
   fn JS_GetGlobalObject(ctx: *mut JSContext) -> JSValue;
   fn JS_GetRuntime(ctx: *mut JSContext) -> *mut JSRuntime;
+  fn JS_ResetUncatchableError(ctx: *mut JSContext);
 }
 
 /// JSContext represents a Javascript context (or Realm).
@@ -114,6 +115,12 @@ impl JSContext {
     let rt = unsafe { JS_GetRuntime(self) };
     let rt = unsafe { rt.as_mut() }.unwrap();
     rt
+  }
+
+  /// Convert the uncatchable "interrupted" error into a normal error so that
+  /// it can be caught
+  pub fn reset_uncatchable_error(&mut self) {
+    unsafe { JS_ResetUncatchableError(self) };
   }
 
   /// Duplicate the JSContext reference count. use JS_DupContext internally.

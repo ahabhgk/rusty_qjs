@@ -11,7 +11,7 @@ use crate::{error::AnyError, error::JSException, ext};
 fn host_promise_rejection_tracker(
   ctx: &mut JSContext,
   _promise: JSValue,
-  reason: JSValue,
+  mut reason: JSValue,
   is_handled: bool,
   opaque: *mut ::std::os::raw::c_void,
 ) {
