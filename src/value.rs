@@ -26,17 +26,14 @@ extern "C" {
   fn JS_NewCFunction_real(
     ctx: *mut JSContext,
     func: *mut GenJSCFunction,
-    name: *const ::std::os::raw::c_char,
-    length: ::std::os::raw::c_int,
+    name: *const libc::c_char,
+    length: libc::c_int,
   ) -> JSValue;
-  fn JS_ToCStringLen_real(
+  fn JS_ToCStringLen2(
     ctx: *mut JSContext,
     plen: *mut libc::size_t,
     val1: JSValue,
-  ) -> *const libc::c_char;
-  fn JS_ToCString_real(
-    ctx: *mut JSContext,
-    val1: JSValue,
+    cesu8: libc::c_int,
   ) -> *const libc::c_char;
   fn JS_FreeCString(ctx: *mut JSContext, ptr: *const libc::c_char);
   fn JS_IsNumber_real(v: JSValue) -> bool;
@@ -96,6 +93,36 @@ extern "C" {
     pres: *mut i64,
     val: JSValue,
   ) -> libc::c_int;
+  fn JS_ToIndex(
+    ctx: *mut JSContext,
+    plen: *mut u64,
+    val: JSValue,
+  ) -> libc::c_int;
+  fn JS_ToFloat64(
+    ctx: *mut JSContext,
+    pres: *mut f64,
+    val: JSValue,
+  ) -> libc::c_int;
+  fn JS_ToBigInt64(
+    ctx: *mut JSContext,
+    pres: *mut i64,
+    val: JSValue,
+  ) -> libc::c_int;
+  fn JS_ToInt64Ext(
+    ctx: *mut JSContext,
+    pres: *mut i64,
+    val: JSValue,
+  ) -> libc::c_int;
+  fn JS_NewStringLen(
+    ctx: *mut JSContext,
+    str1: *const libc::c_char,
+    len1: libc::size_t,
+  ) -> JSValue;
+  fn JS_NewString(ctx: *mut JSContext, str_: *const libc::c_char) -> JSValue;
+  fn JS_NewAtomString(ctx: *mut JSContext, str: *const libc::c_char)
+    -> JSValue;
+  fn JS_ToString(ctx: *mut JSContext, val: JSValue) -> JSValue;
+  fn JS_ToPropertyKey(ctx: *mut JSContext, val: JSValue) -> JSValue;
   fn JS_GetPropertyStr(
     ctx: *mut JSContext,
     this_obj: JSValue,
@@ -317,21 +344,43 @@ impl JSValue {
     unsafe { JS_NewCatchOffset_real(ctx, value) }
   }
 
-  /// Convert a JSValue to a string with its length. use JS_ToCStringLen internally.
-  pub fn to_string_with_len(&self, ctx: &mut JSContext, len: usize) -> String {
-    let len = len as *const usize as *mut usize;
-    let ptr = unsafe { JS_ToCStringLen_real(ctx, len, *self) };
-    let cstr = unsafe { CStr::from_ptr(ptr) };
-    unsafe { JS_FreeCString(ctx, ptr) };
-    cstr_to_string(cstr)
+  /// Convert a JSValue to a rust string with its length and cesu8, cesu8 determines
+  /// if non-BMP1 codepoints are encoded as 1 or 2 utf-8 sequences. use JS_ToCStringLen2
+  /// internally.
+  pub fn to_rust_string_with_length_and_cesu8<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+    len: usize,
+    cesu8: bool,
+  ) -> Result<String, JSContextException<'ctx>> {
+    let len = len as *const usize as *mut _;
+    let cesu8 = if cesu8 { 1 } else { 0 };
+    let p = unsafe { JS_ToCStringLen2(ctx, len, *self, cesu8) };
+    if p == ptr::null() {
+      let e = ctx.get_exception();
+      Err(JSContextException::from_jsvalue(ctx, e))
+    } else {
+      let cstr = unsafe { CStr::from_ptr(p) };
+      unsafe { JS_FreeCString(ctx, p) };
+      Ok(cstr_to_string(cstr))
+    }
   }
 
-  /// Convert a JSValue to a string. use JS_ToCString internally.
-  pub fn to_string(&self, ctx: &mut JSContext) -> String {
-    let ptr = unsafe { JS_ToCString_real(ctx, *self) };
-    let cstr = unsafe { CStr::from_ptr(ptr) };
-    unsafe { JS_FreeCString(ctx, ptr) };
-    cstr_to_string(cstr)
+  /// Convert a JSValue to a rust string with its length. use JS_ToCStringLen internally.
+  pub fn to_rust_string_with_length<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+    len: usize,
+  ) -> Result<String, JSContextException<'ctx>> {
+    self.to_rust_string_with_length_and_cesu8(ctx, len, false)
+  }
+
+  /// Convert a JSValue to a rust string. use JS_ToCString internally.
+  pub fn to_rust_string<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<String, JSContextException<'ctx>> {
+    self.to_rust_string_with_length_and_cesu8(ctx, 0, false)
   }
 
   /// Returns true if the JSValue is a number. use JS_IsNumber internally.
@@ -502,6 +551,104 @@ impl JSValue {
         Err(JSContextException::from_jsvalue(ctx, e))
       }
     }
+  }
+
+  /// Convert a JSValue to an array index, use JS_ToIndex internally.
+  pub fn to_index<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<u64, JSContextException<'ctx>> {
+    let plen = ptr::null_mut();
+    let res = unsafe { JS_ToIndex(ctx, plen, *self) };
+    match res {
+      0 => Ok(unsafe { *plen }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// Convert a JSValue to a float64, use JS_ToFloat64 internally.
+  pub fn to_float64<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<f64, JSContextException<'ctx>> {
+    let pres = ptr::null_mut();
+    let res = unsafe { JS_ToFloat64(ctx, pres, *self) };
+    match res {
+      0 => Ok(unsafe { *pres }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// Convert a JSValue to a big int64, return an exception if the JSValue
+  /// is a Number. use JS_ToBigInt64 internally.
+  pub fn to_big_int64<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<i64, JSContextException<'ctx>> {
+    let pres = ptr::null_mut();
+    let res = unsafe { JS_ToBigInt64(ctx, pres, *self) };
+    match res {
+      0 => Ok(unsafe { *pres }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// same as JSValue::to_int64 but allow BigInt. use JS_ToInt64Ext internally.
+  pub fn to_int64_ext<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<i64, JSContextException<'ctx>> {
+    let pres = ptr::null_mut();
+    let res = unsafe { JS_ToInt64Ext(ctx, pres, *self) };
+    match res {
+      0 => Ok(unsafe { *pres }),
+      _ => {
+        let e = ctx.get_exception();
+        Err(JSContextException::from_jsvalue(ctx, e))
+      }
+    }
+  }
+
+  /// Create a JSValue of string with its length. use JS_NewStringLen internally.
+  pub fn new_string_with_length(
+    ctx: &mut JSContext,
+    value: &str,
+    len: usize,
+  ) -> Self {
+    let value = CString::new(value).unwrap();
+    unsafe { JS_NewStringLen(ctx, value.as_ptr(), len) }
+  }
+
+  /// Create a JSValue of string. use JS_NewString internally.
+  pub fn new_string(ctx: &mut JSContext, value: &str) -> Self {
+    let value = CString::new(value).unwrap();
+    unsafe { JS_NewString(ctx, value.as_ptr()) }
+  }
+
+  /// Create a JSValue of string. use JS_NewAtomString internally.
+  pub fn new_atom_string(ctx: &mut JSContext, value: &str) -> Self {
+    let value = CString::new(value).unwrap();
+    unsafe { JS_NewAtomString(ctx, value.as_ptr()) }
+  }
+
+  /// Convert a JSValue to a js string. use JS_ToString internally.
+  pub fn to_string(&self, ctx: &mut JSContext) -> Self {
+    unsafe { JS_ToString(ctx, *self) }
+  }
+
+  /// Convert a JSValue to a property key (string or symbol). use JS_ToPropertyKey
+  /// internally.
+  pub fn to_property_key(&self, ctx: &mut JSContext) -> Self {
+    unsafe { JS_ToPropertyKey(ctx, *self) }
   }
 
   /// Get property from a JSValue by a &str prop. use JS_GetPropertyStr internally.

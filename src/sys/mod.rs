@@ -478,28 +478,7 @@
 
 // /* value handling */
 
-// int JS_ToIndex(JSContext *ctx, uint64_t *plen, JSValueConst val);
-// int JS_ToFloat64(JSContext *ctx, double *pres, JSValueConst val);
-// /* return an exception if 'val' is a Number */
-// int JS_ToBigInt64(JSContext *ctx, int64_t *pres, JSValueConst val);
-// /* same as JS_ToInt64() but allow BigInt */
-// int JS_ToInt64Ext(JSContext *ctx, int64_t *pres, JSValueConst val);
-
-// JSValue JS_NewStringLen(JSContext *ctx, const char *str1, size_t len1);
-// JSValue JS_NewString(JSContext *ctx, const char *str);
-// JSValue JS_NewAtomString(JSContext *ctx, const char *str);
-// JSValue JS_ToString(JSContext *ctx, JSValueConst val);
-// JSValue JS_ToPropertyKey(JSContext *ctx, JSValueConst val);
-// const char *JS_ToCStringLen2(JSContext *ctx, size_t *plen, JSValueConst val1, JS_BOOL cesu8);
-// static inline const char *JS_ToCStringLen(JSContext *ctx, size_t *plen, JSValueConst val1)
-// {
-//     return JS_ToCStringLen2(ctx, plen, val1, 0);
-// }
-// static inline const char *JS_ToCString(JSContext *ctx, JSValueConst val1)
-// {
-//     return JS_ToCStringLen2(ctx, NULL, val1, 0);
-// }
-// void JS_FreeCString(JSContext *ctx, const char *ptr);
+///don't need this // void JS_FreeCString(JSContext *ctx, const char *ptr);
 
 // JSValue JS_NewObjectProtoClass(JSContext *ctx, JSValueConst proto, JSClassID class_id);
 // JSValue JS_NewObjectClass(JSContext *ctx, int class_id);

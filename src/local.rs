@@ -45,7 +45,7 @@ impl DerefMut for Local<'_> {
 impl From<Local<'_>> for String {
   fn from(lc: Local) -> Self {
     let ctx = unsafe { lc.context.as_mut() }.unwrap();
-    lc.value.to_string(ctx)
+    lc.value.to_rust_string(ctx).unwrap()
   }
 }
 
@@ -127,7 +127,7 @@ mod tests {
       ) -> JSValue {
         let output = argv
           .iter()
-          .map(|value| value.to_string(ctx))
+          .map(|value| value.to_rust_string(ctx).unwrap())
           .collect::<Vec<String>>()
           .join(" ");
         let mut stdout = std::io::stdout();
@@ -145,6 +145,6 @@ mod tests {
       global.set_property_str("console", console).unwrap();
     }
 
-    ctx.eval_script("console.log(\"hello world\")", "<test>");
+    ctx.eval_script("console.log('hello world')", "<test>");
   }
 }

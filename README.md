@@ -2,6 +2,12 @@
 
 Rust bindings to QuickJS.
 
+## Todo
+
+- [ ] JSValue::new_... returns a Result
+- [ ] specific JSValue type, like JsString, JsNumber...?
+- [ ] catch unwind for extern "C" fn?
+
 ## Feature
 
 ### local
@@ -20,7 +26,7 @@ use std::io::Write;
 fn js_print(ctx: &mut JSContext, _this: JSValue, argv: &[JSValue]) -> JSValue {
   let output = argv
     .iter()
-    .map(|value| value.to_string(ctx))
+    .map(|value| value.to_rust_string(ctx))
     .collect::<Vec<String>>()
     .join(" ");
   let mut stdout = std::io::stdout();
