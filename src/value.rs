@@ -356,7 +356,7 @@ impl JSValue {
     let len = len as *const usize as *mut _;
     let cesu8 = if cesu8 { 1 } else { 0 };
     let p = unsafe { JS_ToCStringLen2(ctx, len, *self, cesu8) };
-    if p == ptr::null() {
+    if p.is_null() {
       let e = ctx.get_exception();
       Err(JSContextException::from_jsvalue(ctx, e))
     } else {
