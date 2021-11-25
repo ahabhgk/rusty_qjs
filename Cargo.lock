@@ -422,7 +422,6 @@ dependencies = [
  "futures",
  "os_pipe",
  "rusty_qjs",
- "rusty_qjs_derive",
  "thiserror",
  "tokio",
 ]
@@ -452,15 +451,6 @@ dependencies = [
  "cc",
  "libc",
  "thiserror",
-]
-
-[[package]]
-name = "rusty_qjs_derive"
-version = "0.0.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

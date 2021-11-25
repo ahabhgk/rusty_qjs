@@ -33,6 +33,18 @@ JSValue JS_NewInt32_real(JSContext *ctx, int32_t val) {
     return JS_NewInt32(ctx, val);
 }
 
+JSValue JS_NewInt64_real(JSContext *ctx, int64_t val) {
+    return JS_NewInt64(ctx, val);
+}
+
+JSValue JS_NewUint32_real(JSContext *ctx, uint32_t val) {
+    return JS_NewUint32(ctx, val);
+}
+
+JSValue JS_NewCatchOffset_real(JSContext *ctx, int32_t val) {
+    return JS_NewCatchOffset(ctx, val);
+}
+
 JSValue JS_NewBool_real(JSContext *ctx, JS_BOOL val) {
     return JS_NewBool(ctx, val) ;
 }
@@ -99,14 +111,6 @@ JS_BOOL JS_IsObject_real(JSValueConst v) {
 
 int JS_ToUint32_real(JSContext *ctx, uint32_t *pres, JSValueConst val) {
     return JS_ToUint32(ctx, pres, val);
-}
-
-const char *JS_ToCStringLen_real(JSContext *ctx, size_t *plen, JSValueConst val1) {
-    return JS_ToCStringLen(ctx, plen, val1);
-}
-
-const char *JS_ToCString_real(JSContext *ctx, JSValueConst val1) {
-    return JS_ToCString(ctx, val1);
 }
 
 int JS_SetProperty_real(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val) {

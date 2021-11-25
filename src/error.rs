@@ -21,15 +21,3 @@ impl Display for JSContextException<'_> {
     write!(f, "JSContextException: {:?}", self.value)
   }
 }
-
-/// Returns this Error when CallContext::get argument index out of range.
-#[derive(Debug)]
-pub struct ArgumentsIndexOutOfRange;
-
-impl Error for ArgumentsIndexOutOfRange {}
-
-impl Display for ArgumentsIndexOutOfRange {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "Arguments index out of range")
-  }
-}

@@ -8,22 +8,23 @@ use rusty_qjs::{
 
 use crate::{error::AnyError, error::JSException, ext};
 
-extern "C" fn host_promise_rejection_tracker(
-  ctx: *mut JSContext,
+fn host_promise_rejection_tracker(
+  ctx: &mut JSContext,
   _promise: JSValue,
-  reason: JSValue,
-  is_handled: ::std::os::raw::c_int,
+  mut reason: JSValue,
+  is_handled: bool,
   opaque: *mut ::std::os::raw::c_void,
 ) {
-  if is_handled == 0 {
+  if !is_handled {
     let qtok = unsafe { &mut *(opaque as *mut Qtok) };
-    let ctx = unsafe { ctx.as_mut() }.unwrap();
+    // TODO: use local default then delete this dup?
     reason.dup(ctx);
     let e = JSContextException::from_jsvalue(ctx, reason).into();
     qtok.pending_promise_exceptions.push(e)
   }
 }
 
+// REFACTOR: use JS_SetRuntimeOpaque to put thead state in jsruntime
 pub struct Qtok<'rt> {
   js_context: OwnedJSContext<'rt>,
   pending_promise_exceptions: Vec<JSException>,
@@ -41,15 +42,13 @@ impl<'rt> Qtok<'rt> {
     // JS_SetModuleLoaderFunc
     // JS_SetHostPromiseRejectionTracker
     let opaque = { &qtok as *const _ as *mut c_void };
-    unsafe {
-      qtok
-        .js_context
-        .get_runtime()
-        .set_host_promise_rejection_tracker(
-          Some(host_promise_rejection_tracker),
-          opaque,
-        )
-    };
+    qtok
+      .js_context
+      .get_runtime()
+      .set_host_promise_rejection_tracker(
+        host_promise_rejection_tracker,
+        opaque,
+      );
     // js_init_module_uv core, timers, error, fs, process...
     // tjs__bootstrap_globals fetch, url, performance, console, wasm...
     // tjs__add_builtins path, uuid, hashlib...

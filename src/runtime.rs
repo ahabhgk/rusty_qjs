@@ -1,16 +1,21 @@
 use std::{
+  mem,
   ops::{Deref, DerefMut},
   ptr::{self, NonNull},
 };
 
-use crate::{error::JSContextException, support::Opaque, JSContext, JSValue};
+use crate::{
+  error::JSContextException,
+  support::{MapFnFrom, MapFnTo, Opaque, ToCFn, UnitType},
+  JSContext, JSValue,
+};
 
 extern "C" {
   fn JS_NewRuntime() -> *mut JSRuntime;
   fn JS_FreeRuntime(rt: *mut JSRuntime);
   fn JS_SetHostPromiseRejectionTracker(
     rt: *mut JSRuntime,
-    cb: JSHostPromiseRejectionTracker,
+    cb: GenJSHostPromiseRejectionTracker,
     opaque: *mut libc::c_void,
   );
   fn JS_ExecutePendingJob(
@@ -19,7 +24,7 @@ extern "C" {
   ) -> libc::c_int;
 }
 
-pub type JSHostPromiseRejectionTracker = ::std::option::Option<
+pub type GenJSHostPromiseRejectionTracker = ::std::option::Option<
   unsafe extern "C" fn(
     ctx: *mut JSContext,
     promise: JSValue,
@@ -29,12 +34,37 @@ pub type JSHostPromiseRejectionTracker = ::std::option::Option<
   ),
 >;
 
+pub type JSHostPromiseRejectionTracker = extern "C" fn(
+  ctx: *mut JSContext,
+  promise: JSValue,
+  reason: JSValue,
+  is_handled: libc::c_int,
+  opaque: *mut libc::c_void,
+);
+
+impl<F> MapFnFrom<F> for JSHostPromiseRejectionTracker
+where
+  F: UnitType + Fn(&mut JSContext, JSValue, JSValue, bool, *mut libc::c_void),
+{
+  fn mapping() -> Self {
+    let f = |ctx: *mut JSContext,
+             promise: JSValue,
+             reason: JSValue,
+             is_handled: libc::c_int,
+             opaque: *mut libc::c_void| {
+      let ctx = unsafe { ctx.as_mut() }.unwrap();
+      (F::get())(ctx, promise, reason, is_handled != 0, opaque)
+    };
+    f.to_c_fn()
+  }
+}
+
 /// JSRuntime represents a Javascript runtime corresponding to an
 /// object heap. Several runtimes can exist at the same time but they
 /// cannot exchange objects. Inside a given runtime, no multi-threading
 /// is supported.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)] // Clone?
+#[derive(Debug, Copy, Clone)]
 pub struct JSRuntime(Opaque);
 
 impl JSRuntime {
@@ -49,16 +79,20 @@ impl JSRuntime {
 
   /// Set callback to handle host promise rejection.
   /// use JS_SetHostPromiseRejectionTracker internally.
-  ///
-  /// # Safety
-  ///
-  /// TODO: will use fn mapping or proc macro to abstract the unsafe
-  pub unsafe fn set_host_promise_rejection_tracker(
+  #[allow(clippy::not_unsafe_ptr_arg_deref)]
+  pub fn set_host_promise_rejection_tracker(
     &mut self,
-    tracker: JSHostPromiseRejectionTracker,
+    tracker: impl MapFnTo<JSHostPromiseRejectionTracker>,
     opaque: *mut libc::c_void,
   ) {
-    JS_SetHostPromiseRejectionTracker(self, tracker, opaque);
+    let tracker = tracker.map_fn_to();
+    unsafe {
+      JS_SetHostPromiseRejectionTracker(
+        self,
+        mem::transmute(tracker as *mut ()),
+        opaque,
+      )
+    };
   }
 
   /// Executes next pending job, returns JSContextException if exception,

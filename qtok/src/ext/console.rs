@@ -7,7 +7,7 @@ use crate::error::JSException;
 fn js_print(ctx: &mut JSContext, _this: JSValue, argv: &[JSValue]) -> JSValue {
   let output = argv
     .iter()
-    .map(|value| value.to_string(ctx))
+    .map(|value| value.to_rust_string(ctx).unwrap())
     .collect::<Vec<String>>()
     .join(" ");
   let mut stdout = std::io::stdout();
