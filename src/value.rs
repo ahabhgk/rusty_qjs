@@ -123,6 +123,20 @@ extern "C" {
     -> JSValue;
   fn JS_ToString(ctx: *mut JSContext, val: JSValue) -> JSValue;
   fn JS_ToPropertyKey(ctx: *mut JSContext, val: JSValue) -> JSValue;
+  fn JS_NewObjectProtoClass(
+    ctx: *mut JSContext,
+    proto: JSValue,
+    class_id: JSClassID,
+  ) -> JSValue;
+  fn JS_NewObjectClass(ctx: *mut JSContext, class_id: JSClassID) -> JSValue;
+  fn JS_NewObjectProto(ctx: *mut JSContext, proto: JSValue) -> JSValue;
+  fn JS_IsFunction(ctx: *mut JSContext, val: JSValue) -> bool;
+  fn JS_IsConstructor(ctx: *mut JSContext, val: JSValue) -> bool;
+  fn JS_SetConstructorBit(
+    ctx: *mut JSContext,
+    func_obj: JSValue,
+    val: bool,
+  ) -> bool;
   fn JS_GetPropertyStr(
     ctx: *mut JSContext,
     this_obj: JSValue,
@@ -135,6 +149,8 @@ extern "C" {
     val: JSValue,
   ) -> libc::c_int;
 }
+
+pub type JSClassID = u32;
 
 type GenJSCFunction = ::std::option::Option<
   unsafe extern "C" fn(
@@ -649,6 +665,40 @@ impl JSValue {
   /// internally.
   pub fn to_property_key(&self, ctx: &mut JSContext) -> Self {
     unsafe { JS_ToPropertyKey(ctx, *self) }
+  }
+
+  /// JS_NewObjectProtoClass, proto must be an object or JS_NULL
+  pub fn new_object_proto_class(
+    ctx: &mut JSContext,
+    proto: Self,
+    js_class: JSClassID,
+  ) -> Self {
+    unsafe { JS_NewObjectProtoClass(ctx, proto, js_class) }
+  }
+
+  /// JS_NewObjectClass
+  pub fn new_object_proto(ctx: &mut JSContext, js_class: JSClassID) -> Self {
+    unsafe { JS_NewObjectClass(ctx, js_class) }
+  }
+
+  /// JS_NewObjectProto
+  pub fn new_object_class(ctx: &mut JSContext, proto: Self) -> Self {
+    unsafe { JS_NewObjectProto(ctx, proto) }
+  }
+
+  /// JS_IsFunction
+  pub fn is_function(&self, ctx: &mut JSContext) -> bool {
+    unsafe { JS_IsFunction(ctx, *self) }
+  }
+
+  /// JS_IsConstructor
+  pub fn is_constructor(&self, ctx: &mut JSContext) -> bool {
+    unsafe { JS_IsConstructor(ctx, *self) }
+  }
+
+  /// JS_SetConstructorBit
+  pub fn set_constructor_bit(&self, ctx: &mut JSContext, val: bool) -> bool {
+    unsafe { JS_SetConstructorBit(ctx, *self, val) }
   }
 
   /// Get property from a JSValue by a &str prop. use JS_GetPropertyStr internally.

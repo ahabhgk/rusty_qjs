@@ -480,15 +480,6 @@
 
 ///don't need this // void JS_FreeCString(JSContext *ctx, const char *ptr);
 
-// JSValue JS_NewObjectProtoClass(JSContext *ctx, JSValueConst proto, JSClassID class_id);
-// JSValue JS_NewObjectClass(JSContext *ctx, int class_id);
-// JSValue JS_NewObjectProto(JSContext *ctx, JSValueConst proto);
-// JSValue JS_NewObject(JSContext *ctx);
-
-// JS_BOOL JS_IsFunction(JSContext* ctx, JSValueConst val);
-// JS_BOOL JS_IsConstructor(JSContext* ctx, JSValueConst val);
-// JS_BOOL JS_SetConstructorBit(JSContext *ctx, JSValueConst func_obj, JS_BOOL val);
-
 // JSValue JS_NewArray(JSContext *ctx);
 // int JS_IsArray(JSContext *ctx, JSValueConst val);
 
