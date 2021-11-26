@@ -6,6 +6,21 @@ pub fn cstr_to_string(cstr: &CStr) -> String {
   String::from_utf8_lossy(cstr.to_bytes()).into_owned()
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! check_exception {
+  ($value: expr, $ctx: expr) => {{
+    let value = $value;
+    let ctx = $ctx;
+    if value.is_exception() {
+      let e = ctx.get_exception();
+      Err($crate::error::JSContextException::from_jsvalue(ctx, e))
+    } else {
+      Ok(value)
+    }
+  }};
+}
+
 // from: https://github.com/denoland/rusty_v8/pull/207
 pub trait UnitType
 where
