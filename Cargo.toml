@@ -15,7 +15,7 @@ local = []
 all-features = true
 
 [dependencies]
-libc = "0.2.111"
+libc = "0.2.117"
 thiserror = "1.0.30"
 
 [build-dependencies]
