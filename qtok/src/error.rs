@@ -27,9 +27,9 @@ impl From<JSContextException<'_>> for JSException {
     } = error;
     let value = Local::new(ctx, value);
     let (name, message, stack) = if value.is_error() {
-      let name = value.get_property_str("name").into();
-      let message = value.get_property_str("message").into();
-      let stack = value.get_property_str("stack").into();
+      let name = value.get_property_str("name").unwrap().into();
+      let message = value.get_property_str("message").unwrap().into();
+      let stack = value.get_property_str("stack").unwrap().into();
 
       (name, message, stack)
     } else {

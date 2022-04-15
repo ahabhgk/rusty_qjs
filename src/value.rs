@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+  check_exception,
   error::JSContextException,
   support::{cstr_to_string, MapFnFrom, MapFnTo, ToCFn, UnitType},
   JSContext, JSRuntime, QuickjsRc,
@@ -19,8 +20,8 @@ extern "C" {
   fn JS_NewInt64_real(ctx: *mut JSContext, v: i64) -> JSValue;
   fn JS_NewUint32_real(ctx: *mut JSContext, v: u32) -> JSValue;
   fn JS_NewFloat64_real(ctx: *mut JSContext, v: f64) -> JSValue;
-  pub fn JS_NewBigInt64(ctx: *mut JSContext, v: i64) -> JSValue;
-  pub fn JS_NewBigUint64(ctx: *mut JSContext, v: u64) -> JSValue;
+  fn JS_NewBigInt64(ctx: *mut JSContext, v: i64) -> JSValue;
+  fn JS_NewBigUint64(ctx: *mut JSContext, v: u64) -> JSValue;
   fn JS_NewCatchOffset_real(ctx: *mut JSContext, v: i32) -> JSValue;
   fn JS_NewObject(ctx: *mut JSContext) -> JSValue;
   fn JS_NewCFunction_real(
@@ -280,47 +281,55 @@ impl QuickjsRc for JSValue {
 }
 
 impl JSValue {
-  /// Create a JSValue of boolean. use JS_NewBool internally.
+  /// Create a JSValue of boolean. use JS_NewBool internally. // ok
   pub fn new_bool(ctx: &mut JSContext, value: bool) -> Self {
     unsafe { JS_NewBool_real(ctx, value) }
   }
 
-  /// Create a JSValue of int32. use JS_NewInt32 internally.
+  /// Create a JSValue of int32. use JS_NewInt32 internally. // ok
   pub fn new_int32(ctx: &mut JSContext, value: i32) -> Self {
     unsafe { JS_NewInt32_real(ctx, value) }
   }
 
-  /// Create a JSValue of int64. use JS_NewInt64 internally.
+  /// Create a JSValue of int64. use JS_NewInt64 internally. // ok
   pub fn new_int64(ctx: &mut JSContext, value: i64) -> Self {
     unsafe { JS_NewInt64_real(ctx, value) }
   }
 
-  /// Create a JSValue of uint32. use JS_NewUint32 internally.
+  /// Create a JSValue of uint32. use JS_NewUint32 internally. // ok
   pub fn new_uint32(ctx: &mut JSContext, value: u32) -> Self {
     unsafe { JS_NewUint32_real(ctx, value) }
   }
 
-  /// Create a JSValue of float64. use JS_NewFloat64 internally.
+  /// Create a JSValue of float64. use JS_NewFloat64 internally. // ok
   pub fn new_float64(ctx: &mut JSContext, value: f64) -> Self {
     unsafe { JS_NewFloat64_real(ctx, value) }
   }
 
-  /// Create a JSValue of big int64. use JS_NewBigInt64 internally.
-  pub fn new_big_int64(ctx: &mut JSContext, value: i64) -> Self {
-    unsafe { JS_NewBigInt64(ctx, value) }
+  /// JS_NewBigInt64, returns Err when out of memory.
+  pub fn new_big_int64(
+    ctx: &mut JSContext,
+    value: i64,
+  ) -> Result<Self, JSContextException> {
+    let res = unsafe { JS_NewBigInt64(ctx, value) };
+    check_exception!(res, ctx)
   }
 
-  /// Create a JSValue of big uint64. use JS_NewBigUint64 internally.
-  pub fn new_big_uint64(ctx: &mut JSContext, value: u64) -> Self {
-    unsafe { JS_NewBigUint64(ctx, value) }
+  /// JS_NewBigUint64, returns Err when out of memory.
+  pub fn new_big_uint64(
+    ctx: &mut JSContext,
+    value: u64,
+  ) -> Result<Self, JSContextException> {
+    let res = unsafe { JS_NewBigUint64(ctx, value) };
+    check_exception!(res, ctx)
   }
 
-  /// Create a JSValue of object. use JS_NewObject internally.
+  /// JS_NewObject // ok
   pub fn new_object(ctx: &mut JSContext) -> Self {
     unsafe { JS_NewObject(ctx) }
   }
 
-  /// Create a JSValue of function. use JS_NewCFunction internally.
+  /// JS_NewCFunction, at least 'len' arguments will be readable in 'argv'  // ok
   pub fn new_function<F>(
     ctx: &mut JSContext,
     func: F,
@@ -342,7 +351,7 @@ impl JSValue {
     }
   }
 
-  /// Create a JSValue of undefined.
+  /// Create a JSValue of undefined. // ok
   pub fn new_undefined() -> Self {
     Self {
       u: JSValueUnion { int32: 0 },
@@ -350,12 +359,13 @@ impl JSValue {
     }
   }
 
-  /// Create a JSValue of Error.
-  pub fn new_error(ctx: &mut JSContext) -> Self {
-    unsafe { JS_NewError(ctx) }
+  /// JS_NewError, returns Err when out of memory.
+  pub fn new_error(ctx: &mut JSContext) -> Result<Self, JSContextException> {
+    let res = unsafe { JS_NewError(ctx) };
+    check_exception!(res, ctx)
   }
 
-  /// Create a JSValue of catch offset. use JS_NewCatchOffset internally.
+  /// JS_NewCatchOffset // ok
   pub fn new_catch_offset(ctx: &mut JSContext, value: i32) -> Self {
     unsafe { JS_NewCatchOffset_real(ctx, value) }
   }
@@ -399,12 +409,12 @@ impl JSValue {
     self.to_rust_string_with_length_and_cesu8(ctx, 0, false)
   }
 
-  /// Returns true if the JSValue is a number. use JS_IsNumber internally.
+  /// Returns true if the JSValue is a number. use JS_IsNumber internally. // ok
   pub fn is_number(&self) -> bool {
     unsafe { JS_IsNumber_real(*self) }
   }
 
-  /// Returns true if the JSValue is a big int. use JS_IsBigInt internally.
+  /// Returns true if the JSValue is a big int. use JS_IsBigInt internally. // ok
   pub fn is_big_int(&self, ctx: &mut JSContext) -> bool {
     unsafe { JS_IsBigInt_real(ctx, *self) }
   }
@@ -505,7 +515,7 @@ impl JSValue {
     unsafe { JS_ThrowOutOfMemory(ctx) }
   }
 
-  /// Convert a JSValue to a bool, use JS_ToBool internally.
+  /// JS_ToBool, return Err when JSValue is an exception.
   pub fn to_bool<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -521,7 +531,7 @@ impl JSValue {
     }
   }
 
-  /// Convert a JSValue to an i32, use JS_ToInt32 internally.
+  /// JS_ToInt32, return Err when JSValue is an exception.
   pub fn to_int32<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -529,7 +539,7 @@ impl JSValue {
     let pres = ptr::null_mut();
     let res = unsafe { JS_ToInt32(ctx, pres, *self) };
     match res {
-      0 => Ok(unsafe { *pres }),
+      0.. => Ok(unsafe { *pres }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -537,7 +547,7 @@ impl JSValue {
     }
   }
 
-  /// Convert a JSValue to an u32, use JS_ToUint32 internally.
+  /// JS_ToUint32, return Err when JSValue is an exception.
   pub fn to_uint32<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -545,7 +555,7 @@ impl JSValue {
     let pres = ptr::null_mut();
     let res = unsafe { JS_ToUint32_real(ctx, pres, *self) };
     match res {
-      0 => Ok(unsafe { *pres }),
+      0.. => Ok(unsafe { *pres }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -553,7 +563,7 @@ impl JSValue {
     }
   }
 
-  /// Convert a JSValue to an i64, use JS_ToInt64 internally.
+  /// JS_ToInt64, return Err when JSValue is an exception.
   pub fn to_int64<'ctx>(
     &self,
     ctx: &'ctx mut JSContext,
@@ -561,7 +571,7 @@ impl JSValue {
     let pres = ptr::null_mut();
     let res = unsafe { JS_ToInt64(ctx, pres, *self) };
     match res {
-      0 => Ok(unsafe { *pres }),
+      0.. => Ok(unsafe { *pres }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -577,7 +587,7 @@ impl JSValue {
     let plen = ptr::null_mut();
     let res = unsafe { JS_ToIndex(ctx, plen, *self) };
     match res {
-      0 => Ok(unsafe { *plen }),
+      0.. => Ok(unsafe { *plen }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -593,7 +603,7 @@ impl JSValue {
     let pres = ptr::null_mut();
     let res = unsafe { JS_ToFloat64(ctx, pres, *self) };
     match res {
-      0 => Ok(unsafe { *pres }),
+      0.. => Ok(unsafe { *pres }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -610,7 +620,7 @@ impl JSValue {
     let pres = ptr::null_mut();
     let res = unsafe { JS_ToBigInt64(ctx, pres, *self) };
     match res {
-      0 => Ok(unsafe { *pres }),
+      0.. => Ok(unsafe { *pres }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -626,7 +636,7 @@ impl JSValue {
     let pres = ptr::null_mut();
     let res = unsafe { JS_ToInt64Ext(ctx, pres, *self) };
     match res {
-      0 => Ok(unsafe { *pres }),
+      0.. => Ok(unsafe { *pres }),
       _ => {
         let e = ctx.get_exception();
         Err(JSContextException::from_jsvalue(ctx, e))
@@ -635,36 +645,53 @@ impl JSValue {
   }
 
   /// Create a JSValue of string with its length. use JS_NewStringLen internally.
-  pub fn new_string_with_length(
-    ctx: &mut JSContext,
+  pub fn new_string_with_length<'ctx>(
+    ctx: &'ctx mut JSContext,
     value: &str,
     len: usize,
-  ) -> Self {
+  ) -> Result<Self, JSContextException<'ctx>> {
     let value = CString::new(value).unwrap();
-    unsafe { JS_NewStringLen(ctx, value.as_ptr(), len) }
+    let res = unsafe { JS_NewStringLen(ctx, value.as_ptr(), len) };
+    check_exception!(res, ctx)
   }
 
   /// Create a JSValue of string. use JS_NewString internally.
-  pub fn new_string(ctx: &mut JSContext, value: &str) -> Self {
+  pub fn new_string<'ctx>(
+    ctx: &'ctx mut JSContext,
+    value: &str,
+  ) -> Result<Self, JSContextException<'ctx>> {
     let value = CString::new(value).unwrap();
-    unsafe { JS_NewString(ctx, value.as_ptr()) }
+    let res = unsafe { JS_NewString(ctx, value.as_ptr()) };
+    check_exception!(res, ctx)
   }
 
   /// Create a JSValue of string. use JS_NewAtomString internally.
-  pub fn new_atom_string(ctx: &mut JSContext, value: &str) -> Self {
+  pub fn new_atom_string<'ctx>(
+    ctx: &'ctx mut JSContext,
+    value: &str,
+  ) -> Result<Self, JSContextException<'ctx>> {
     let value = CString::new(value).unwrap();
-    unsafe { JS_NewAtomString(ctx, value.as_ptr()) }
+    let res = unsafe { JS_NewAtomString(ctx, value.as_ptr()) };
+    check_exception!(res, ctx)
   }
 
   /// Convert a JSValue to a js string. use JS_ToString internally.
-  pub fn to_string(&self, ctx: &mut JSContext) -> Self {
-    unsafe { JS_ToString(ctx, *self) }
+  pub fn to_string<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<Self, JSContextException<'ctx>> {
+    let res = unsafe { JS_ToString(ctx, *self) };
+    check_exception!(res, ctx)
   }
 
   /// Convert a JSValue to a property key (string or symbol). use JS_ToPropertyKey
   /// internally.
-  pub fn to_property_key(&self, ctx: &mut JSContext) -> Self {
-    unsafe { JS_ToPropertyKey(ctx, *self) }
+  pub fn to_property_key<'ctx>(
+    &self,
+    ctx: &'ctx mut JSContext,
+  ) -> Result<Self, JSContextException<'ctx>> {
+    let res = unsafe { JS_ToPropertyKey(ctx, *self) };
+    check_exception!(res, ctx)
   }
 
   /// JS_NewObjectProtoClass, proto must be an object or JS_NULL
@@ -672,18 +699,25 @@ impl JSValue {
     ctx: &mut JSContext,
     proto: Self,
     js_class: JSClassID,
-  ) -> Self {
-    unsafe { JS_NewObjectProtoClass(ctx, proto, js_class) }
+  ) -> Result<Self, JSContextException> {
+    let res = unsafe { JS_NewObjectProtoClass(ctx, proto, js_class) };
+    check_exception!(res, ctx)
   }
 
   /// JS_NewObjectClass
-  pub fn new_object_proto(ctx: &mut JSContext, js_class: JSClassID) -> Self {
-    unsafe { JS_NewObjectClass(ctx, js_class) }
+  pub fn new_object_proto(
+    ctx: &mut JSContext,
+    js_class: JSClassID,
+  ) -> Result<Self, JSContextException> {
+    check_exception!(unsafe { JS_NewObjectClass(ctx, js_class) }, ctx)
   }
 
   /// JS_NewObjectProto
-  pub fn new_object_class(ctx: &mut JSContext, proto: Self) -> Self {
-    unsafe { JS_NewObjectProto(ctx, proto) }
+  pub fn new_object_class(
+    ctx: &mut JSContext,
+    proto: Self,
+  ) -> Result<Self, JSContextException> {
+    check_exception!(unsafe { JS_NewObjectProto(ctx, proto) }, ctx)
   }
 
   /// JS_IsFunction
@@ -706,9 +740,12 @@ impl JSValue {
     &self,
     ctx: &'ctx mut JSContext,
     prop: &str,
-  ) -> Self {
+  ) -> Result<Self, JSContextException<'ctx>> {
     let prop_cstring = CString::new(prop).unwrap();
-    unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) }
+    check_exception!(
+      unsafe { JS_GetPropertyStr(ctx, *self, prop_cstring.as_ptr()) },
+      ctx
+    )
   }
 
   /// Set property on a JSValue by a &str prop. use JS_SetPropertyStr internally.

@@ -68,6 +68,14 @@ impl<'ctx> Local<'ctx> {
     }
   }
 
+  fn from_raw(ctx: *mut JSContext, value: JSValue) -> Self {
+    Self {
+      value,
+      context: ctx,
+      _marker: PhantomData,
+    }
+  }
+
   /// Clone the Local, and increment the reference count of the JValue in it.
   pub fn dup(&mut self) -> Self {
     let ctx = self.get_context_mut();
@@ -87,9 +95,15 @@ impl<'ctx> Local<'ctx> {
   }
 
   /// Same as JSValue::get_property_str, but for Local type.
-  pub fn get_property_str(&self, prop: &str) -> Self {
+  pub fn get_property_str(
+    &self,
+    prop: &str,
+  ) -> Result<Self, JSContextException> {
     let ctx = self.get_context_mut();
-    self.value.get_property_str(ctx, prop).to_local(ctx)
+    self
+      .value
+      .get_property_str(ctx, prop)
+      .map(|v| Local::from_raw(self.context, v))
   }
 
   /// Same as JSValue::get_property_str, but for Local type.

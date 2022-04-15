@@ -4,7 +4,8 @@ Rust bindings to QuickJS.
 
 ## Todo
 
-- [ ] JSValue::new_... returns a Result
+- [ ] qtok: quickjs-libc in rust
+- [ ] more doc comments
 - [ ] specific JSValue type, like JsString, JsNumber...?
 - [ ] catch unwind for extern "C" fn?
 
