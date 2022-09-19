@@ -16,7 +16,7 @@ all-features = true
 
 [dependencies]
 libc = "0.2.111"
-thiserror = "1.0.30"
+thiserror = "1.0.35"
 
 [build-dependencies]
 cc = { version = "1.0", features = ["parallel"] }
